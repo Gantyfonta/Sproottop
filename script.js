@@ -112,6 +112,11 @@ async function openApp(appName) {
             case 'minesweeper': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/gemsweeper.png'; title = 'SprootSweeper'; break;
             case 'imageViewer': iconSrc = 'https://win98icons.alexmeub.com/icons/png/display_properties-4.png'; title = 'Image Viewer'; break;
             case 'mediaPlayer': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/ytmediaplayer.png'; title = 'SprootPlayer'; break;
+            case 'calculator': iconSrc = 'https://win98icons.alexmeub.com/icons/png/calculator-0.png'; title = 'SprootCalc'; break;
+            case 'settings': iconSrc = 'https://win98icons.alexmeub.com/icons/png/settings_gear-0.png'; title = 'SprootSettings'; break;
+            case 'clock': iconSrc = 'https://win98icons.alexmeub.com/icons/png/clock-0.png'; title = 'SprootClock'; break;
+            case 'recycle': iconSrc = 'https://win98icons.alexmeub.com/icons/png/recycle_bin_empty-0.png'; title = 'SprootRecycle'; break;
+            case 'chat': iconSrc = 'https://win98icons.alexmeub.com/icons/png/msn-0.png'; title = 'SprootChat'; break;
          }
     }
 
@@ -155,6 +160,21 @@ async function openApp(appName) {
     }
     else if (appName === 'mediaPlayer') {
         await initMediaPlayer(windowElement);
+    }
+    else if (appName === 'chrome') {
+        initChromeBrowser(windowElement);
+    }
+    else if (appName === 'calculator') {
+        initCalculator(windowElement);
+    }
+    else if (appName === 'settings') {
+        initSettings(windowElement);
+    }
+    else if (appName === 'clock') {
+        initClock(windowElement);
+    }
+    else if (appName === 'chat') {
+        initChat(windowElement);
     }
 }
 
@@ -634,6 +654,101 @@ function initMyComputer(windowElement) {
     cDriveIcon.style.display = 'inline-flex'; cDriveContent.style.display = 'none';
 }
 
+function initChromeBrowser(windowElement) {
+    const addressBar = windowElement.querySelector('.browser-address-bar');
+    const goButton = windowElement.querySelector('.browser-go-button');
+    const iframe = windowElement.querySelector('#browser-frame');
+    const loading = windowElement.querySelector('.browser-loading');
+
+    if (!addressBar || !goButton || !iframe || !loading) return;
+
+    function loadUrl() {
+        let url = addressBar.value.trim();
+        if (!url) return;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+        loading.style.display = 'flex';
+        iframe.src = url;
+        iframe.onload = () => {
+            loading.style.display = 'none';
+        };
+    }
+
+    goButton.addEventListener('click', loadUrl);
+    addressBar.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') loadUrl();
+    });
+}
+
+function initCalculator(windowElement) {
+    const display = windowElement.querySelector('#calc-display');
+    const buttons = windowElement.querySelectorAll('.calc-btn');
+    if (!display || !buttons) return;
+
+    let currentInput = '0';
+    let previousInput = '';
+    let operator = null;
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const val = btn.textContent;
+            if (!isNaN(val)) {
+                if (currentInput === '0') currentInput = val;
+                else currentInput += val;
+            } else if (val === 'C') {
+                currentInput = '0';
+                previousInput = '';
+                operator = null;
+            } else if (val === '=') {
+                if (operator && previousInput) {
+                    currentInput = eval(`${previousInput}${operator}${currentInput}`).toString();
+                    operator = null;
+                    previousInput = '';
+                }
+            } else {
+                operator = val;
+                previousInput = currentInput;
+                currentInput = '0';
+            }
+            display.value = currentInput;
+        });
+    });
+}
+
+function initSettings(windowElement) {
+    const bgInput = windowElement.querySelector('#bg-url-input');
+    const applyBgBtn = windowElement.querySelector('#apply-bg-btn');
+    const themeColorInput = windowElement.querySelector('#theme-color-input');
+
+    if (applyBgBtn && bgInput) {
+        applyBgBtn.addEventListener('click', () => {
+            const url = bgInput.value.trim();
+            if (url) {
+                document.body.style.backgroundImage = `url('${url}')`;
+                document.body.style.backgroundColor = 'transparent';
+            }
+        });
+    }
+
+    if (themeColorInput) {
+        themeColorInput.addEventListener('input', (e) => {
+            const color = e.target.value;
+            document.documentElement.style.setProperty('--theme-color', color);
+            // Update taskbar and start menu colors
+            const taskbar = document.getElementById('taskbar');
+            const startMenu = document.getElementById('start-menu');
+            const startButton = document.getElementById('start-button');
+            if (taskbar) taskbar.style.backgroundColor = color;
+            if (startMenu) startMenu.style.backgroundColor = color;
+            if (startButton) {
+                startButton.style.backgroundColor = '#FFF200'; // Keep yellow start button
+                startButton.style.color = color;
+            }
+        });
+    }
+}
+
 // --- YouTube Player (SprootPlayer) Logic ---
 function loadYouTubeApi() {
     if (ytApiLoaded) return Promise.resolve();
@@ -786,6 +901,62 @@ async function initMediaPlayer(windowElement) {
         if (initialStatusMessageEl) initialStatusMessageEl.textContent = `Loading default video...`;
         createPlayer(DEFAULT_YOUTUBE_VIDEO_ID);
     }
+}
+
+function initClock(windowElement) {
+    const display = windowElement.querySelector('#clock-display');
+    const taskbarClock = document.getElementById('taskbar-clock');
+
+    function updateClock() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        const timeStr = `${h}:${m}:${s}`;
+        if (display) display.textContent = timeStr;
+        if (taskbarClock) taskbarClock.textContent = timeStr;
+    }
+
+    setInterval(updateClock, 1000);
+    updateClock();
+}
+
+// Initialize taskbar clock immediately
+initClock(document.createElement('div'));
+
+function initChat(windowElement) {
+    const messages = windowElement.querySelector('#chat-messages');
+    const input = windowElement.querySelector('#chat-input');
+    const sendBtn = windowElement.querySelector('#chat-send');
+
+    if (!messages || !input || !sendBtn) return;
+
+    function sendMessage() {
+        const text = input.value.trim();
+        if (!text) return;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.style.marginBottom = '5px';
+        msgDiv.innerHTML = `<b>You:</b> ${text}`;
+        messages.appendChild(msgDiv);
+        messages.scrollTop = messages.scrollHeight;
+        input.value = '';
+
+        // Mock response
+        setTimeout(() => {
+            const replyDiv = document.createElement('div');
+            replyDiv.style.marginBottom = '5px';
+            replyDiv.style.color = '#008B47';
+            replyDiv.innerHTML = `<b>SprootBot:</b> That's interesting! Tell me more about "${text}".`;
+            messages.appendChild(replyDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }, 1000);
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
 }
 
 
