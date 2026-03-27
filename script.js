@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-// Gemini 95 was fully vibe-coded by @ammaar and @olacombe.
+// Sproot 95 was fully vibe-coded by @ammaar and @olacombe.
 // An homage to an OS that inspired so many of us!
 
 // Define the dosInstances object to fix type errors
@@ -39,7 +39,7 @@ const youtubePlayers = {};
 let ytApiLoaded = false;
 let ytApiLoadingPromise = null;
 
-const DEFAULT_YOUTUBE_VIDEO_ID = 'WXuK6gekU1Y'; // Default video for GemPlayer ("Never Gonna Give You Up")
+const DEFAULT_YOUTUBE_VIDEO_ID = 'WXuK6gekU1Y'; // Default video for SprootPlayer ("Never Gonna Give You Up")
 
 // --- Core Functions ---
 
@@ -104,14 +104,14 @@ async function openApp(appName) {
         if(span) title = span.textContent || appName;
     } else { // Fallback for apps opened via start menu but maybe no desktop icon
          switch(appName) {
-            case 'myComputer': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/mycomputer.png'; title = 'My Gemtop'; break;
+            case 'myComputer': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/mycomputer.png'; title = 'My SprootTop'; break;
             case 'chrome': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/chrome-icon-2.png'; title = 'Chrome'; break;
-            case 'notepad': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/GemNotes.png'; title = 'GemNotes'; break;
-            case 'paint': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/gempaint.png'; title = 'GemPaint'; break;
+            case 'notepad': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/GemNotes.png'; title = 'SprootNotes'; break;
+            case 'paint': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/gempaint.png'; title = 'SprootPaint'; break;
             case 'doom': iconSrc = 'https://64.media.tumblr.com/1d89dfa76381e5c14210a2149c83790d/7a15f84c681c1cf9-c1/s540x810/86985984be99d5591e0cbc0dea6f05ffa3136dac.png'; title = 'Doom II'; break;
-            case 'minesweeper': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/gemsweeper.png'; title = 'GemSweeper'; break;
+            case 'minesweeper': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/gemsweeper.png'; title = 'SprootSweeper'; break;
             case 'imageViewer': iconSrc = 'https://win98icons.alexmeub.com/icons/png/display_properties-4.png'; title = 'Image Viewer'; break;
-            case 'mediaPlayer': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/ytmediaplayer.png'; title = 'GemPlayer'; break;
+            case 'mediaPlayer': iconSrc = 'https://storage.googleapis.com/gemini-95-icons/ytmediaplayer.png'; title = 'SprootPlayer'; break;
          }
     }
 
@@ -634,7 +634,7 @@ function initMyComputer(windowElement) {
     cDriveIcon.style.display = 'inline-flex'; cDriveContent.style.display = 'none';
 }
 
-// --- YouTube Player (GemPlayer) Logic ---
+// --- YouTube Player (SprootPlayer) Logic ---
 function loadYouTubeApi() {
     if (ytApiLoaded) return Promise.resolve();
     if (ytApiLoadingPromise) return ytApiLoadingPromise;
