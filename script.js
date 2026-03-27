@@ -118,6 +118,7 @@ async function openApp(appName) {
             case 'recycle': iconSrc = 'https://win98icons.alexmeub.com/icons/png/recycle_bin_empty-0.png'; title = 'SprootRecycle'; break;
             case 'chat': iconSrc = 'https://win98icons.alexmeub.com/icons/png/msn_messenger-0.png'; title = 'SprootChat'; break;
             case 'taskManager': iconSrc = 'https://win98icons.alexmeub.com/icons/png/task_manager-0.png'; title = 'SprootTask'; break;
+            case 'extensionManager': iconSrc = 'https://win98icons.alexmeub.com/icons/png/settings_gear-0.png'; title = 'Extension Manager'; break;
             case 'casino': iconSrc = 'https://win98icons.alexmeub.com/icons/png/cards-0.png'; title = 'SprootCasino'; break;
             case 'pinball': iconSrc = 'https://win98icons.alexmeub.com/icons/png/pinball-0.png'; title = 'SprootPinball'; break;
          }
@@ -177,7 +178,7 @@ async function openApp(appName) {
         initClock(windowElement);
     }
     else if (appName === 'chat') {
-        initChat(windowElement);
+        // Chat is now an iframe, no initialization needed
     }
     else if (appName === 'notepad') {
         initNotepad(windowElement);
@@ -190,6 +191,9 @@ async function openApp(appName) {
     }
     else if (appName === 'pinball') {
         initPinball(windowElement);
+    }
+    else if (appName === 'extensionManager') {
+        initExtensionManager(windowElement);
     }
 }
 
@@ -672,6 +676,7 @@ function initMyComputer(windowElement) {
 function initChromeBrowser(windowElement) {
     const addressBar = windowElement.querySelector('.browser-address-bar');
     const goButton = windowElement.querySelector('.browser-go-button');
+    const extensionsButton = windowElement.querySelector('.browser-extensions-button');
     const iframe = windowElement.querySelector('#browser-frame');
     const loading = windowElement.querySelector('.browser-loading');
 
@@ -694,6 +699,12 @@ function initChromeBrowser(windowElement) {
     addressBar.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') loadUrl();
     });
+
+    if (extensionsButton) {
+        extensionsButton.addEventListener('click', () => {
+            openApp('extensionManager');
+        });
+    }
 }
 
 function initCalculator(windowElement) {
@@ -938,6 +949,94 @@ function initClock(windowElement) {
 
 // Initialize taskbar clock immediately
 initClock(document.createElement('div'));
+
+let installedExtensions = [];
+
+function initExtensionManager(windowElement) {
+    const uploadBtn = windowElement.querySelector('#upload-extension');
+    const listContainer = windowElement.querySelector('#extension-list');
+
+    function renderExtensions() {
+        if (!listContainer) return;
+        if (installedExtensions.length === 0) {
+            listContainer.innerHTML = '<div style="color: #888; font-style: italic; text-align: center; margin-top: 50px;">No extensions loaded.</div>';
+            return;
+        }
+
+        listContainer.innerHTML = '';
+        installedExtensions.forEach((ext, index) => {
+            const item = document.createElement('div');
+            item.className = 'extension-item';
+            item.style.padding = '10px';
+            item.style.borderBottom = '1px solid #ccc';
+            item.style.display = 'flex';
+            item.style.flexDirection = 'column';
+            item.style.gap = '5px';
+
+            const header = document.createElement('div');
+            header.style.display = 'flex';
+            header.style.justifyContent = 'space-between';
+            header.style.alignItems = 'center';
+
+            const name = document.createElement('span');
+            name.style.fontWeight = 'bold';
+            name.textContent = `${ext.name} v${ext.version}`;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = 'Remove';
+            removeBtn.style.fontSize = '0.6rem';
+            removeBtn.onclick = () => {
+                installedExtensions.splice(index, 1);
+                renderExtensions();
+            };
+
+            header.appendChild(name);
+            header.appendChild(removeBtn);
+
+            const desc = document.createElement('span');
+            desc.style.fontSize = '0.7rem';
+            desc.style.color = '#444';
+            desc.textContent = ext.description || 'No description provided.';
+
+            item.appendChild(header);
+            item.appendChild(desc);
+            listContainer.appendChild(item);
+        });
+    }
+
+    uploadBtn.onclick = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json'; // User should select manifest.json
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const manifest = JSON.parse(event.target.result);
+                    if (!manifest.name || !manifest.version) {
+                        alert("Invalid manifest.json: Missing name or version.");
+                        return;
+                    }
+                    installedExtensions.push({
+                        name: manifest.name,
+                        version: manifest.version,
+                        description: manifest.description,
+                        manifest: manifest
+                    });
+                    renderExtensions();
+                } catch (err) {
+                    alert("Error parsing manifest.json: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    };
+
+    renderExtensions();
+}
 
 function initChat(windowElement) {
     const messages = windowElement.querySelector('#chat-messages');
