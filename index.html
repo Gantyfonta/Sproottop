@@ -13,7 +13,6 @@
     <script type="importmap">
       {
         "imports": {
-          "@google/genai": "https://esm.sh/@google/genai@0.7.0",
           "@tailwindcss/browser": "https://esm.sh/@tailwindcss/browser@^4.1.3"
         }
       }
@@ -173,64 +172,7 @@
         border: none;
         display: block;
       }
-      .gemini-chat-history {
-        flex-grow: 1;
-        overflow-y: auto;
-        border: 1px inset #808080;
-        padding: 5px;
-        margin-bottom: 5px;
-        background-color: white;
-        font-size: 0.8rem;
-      }
-      .gemini-chat-history p {
-        margin: 3px 0;
-        word-wrap: break-word;
-      }
-      .gemini-chat-history .user-message {
-        font-weight: bold;
-        color: blue;
-      }
-      .gemini-chat-history .gemini-message {
-        color: green;
-      }
-      .gemini-chat-history .error-message {
-        color: red;
-        font-style: italic;
-      }
-      .gemini-chat-input-area {
-        display: flex;
-        flex-shrink: 0;
-        border-top: 1px solid #808080;
-        padding: 5px;
-        background-color: #C0C0C0;
-      }
-      .gemini-chat-input {
-        flex-grow: 1;
-        border: 1px solid #000000;
-        padding: 3px;
-        font-size: 0.8rem;
-        margin-right: 5px;
-        background-color: white;
-        box-shadow: inset 1px 1px 1px #808080;
-      }
-      .gemini-chat-send {
-        background-color: #C0C0C0;
-        border-top: 1px solid #FFFFFF;
-        border-left: 1px solid #FFFFFF;
-        border-right: 1px solid #000000;
-        border-bottom: 1px solid #000000;
-        box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.5);
-        padding: 2px 8px;
-        font-size: 0.8rem;
-        cursor: pointer;
-      }
-      .gemini-chat-send:active {
-        border-top: 1px solid #000000;
-        border-left: 1px solid #000000;
-        border-right: 1px solid #FFFFFF;
-        border-bottom: 1px solid #FFFFFF;
-        box-shadow: none;
-      }
+
       .start-menu {
         background-color: #C0C0C0;
         border-top: 2px solid #FFFFFF;
@@ -345,18 +287,7 @@
         height: 30px;
         flex-shrink: 0;
       }
-      .notepad-story-button {
-        background-color: #C0C0C0;
-        border-top: 1px solid #FFFFFF;
-        border-left: 1px solid #FFFFFF;
-        border-right: 1px solid #000000;
-        border-bottom: 1px solid #000000;
-        box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.5);
-        padding: 2px 8px;
-        font-size: 0.8rem;
-        cursor: pointer;
-        height: 24px;
-      }
+
       .browser-toolbar {
         background-color: #C0C0C0;
         padding: 5px;
@@ -398,65 +329,8 @@
         background-color: white;
         overflow: hidden;
       }
-      .browser-loading {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: #C0C0C0;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        font-size: 1rem;
-        z-index: 5;
-        display: none;
-      }
-      #paint-assistant {
-        position: fixed;
-        bottom: 50px;
-        right: 20px;
-        width: 100px;
-        display: none;
-        flex-direction: column;
-        align-items: center;
-        z-index: 1;
-      }
-      #paint-assistant.visible {
-        display: flex;
-      }
-      .assistant-image {
-        width: 80px;
-        height: auto;
-      }
-      .assistant-bubble {
-        background-color: #FFFFE1;
-        border: 1px solid black;
-        padding: 8px 12px;
-        border-radius: 5px;
-        font-size: 0.75rem;
-        font-family: 'Comic Sans MS', cursive, sans-serif;
-        color: black;
-        margin-bottom: 8px;
-        position: relative;
-        box-shadow: 2px 2px 3px rgba(0,0,0,0.2);
-        max-width: 200px;
-        word-wrap: break-word;
-        text-align: center;
-      }
-      .assistant-bubble::after {
-        content: '';
-        position: absolute;
-        bottom: -8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 0;
-        height: 0;
-        border-left: 8px solid transparent;
-        border-right: 8px solid transparent;
-        border-top: 8px solid #FFFFE1;
-      }
+
+
       .paint-toolbar {
         background-color: #C0C0C0;
         padding: 4px;
@@ -681,10 +555,7 @@
         <img src="https://64.media.tumblr.com/1d89dfa76381e5c14210a2149c83790d/7a15f84c681c1cf9-c1/s540x810/86985984be99d5591e0cbc0dea6f05ffa3136dac.png" alt="Doom II" />
         <span>Doom II</span>
       </div>
-      <div class="icon" data-app="gemini">
-        <img src="https://storage.googleapis.com/gemini-95-icons/GeminiChatRetro.png" alt="Gemini App" />
-        <span>Gemini App</span>
-      </div>
+
       <div class="icon" data-app="minesweeper">
         <img src="https://storage.googleapis.com/gemini-95-icons/gemsweeper.png" alt="Minesweeper" />
         <span>GemSweeper</span>
@@ -748,9 +619,6 @@
           </div>
         </div>
         <div class="window-content">
-          <div class="notepad-menu">
-            <button class="notepad-story-button">Generate Story</button>
-          </div>
           <textarea class="notepad-textarea"></textarea>
         </div>
       </div>
@@ -794,22 +662,7 @@
         <div class="window-content" id="doom-content"></div>
       </div>
 
-      <div class="window resizable" id="gemini">
-        <div class="window-titlebar">
-          <span class="window-title">Gemini App</span>
-          <div class="window-controls">
-            <div class="window-minimize window-control-button">−</div>
-            <div class="window-close window-control-button">✕</div>
-          </div>
-        </div>
-        <div class="window-content">
-          <div class="gemini-chat-history"></div>
-          <div class="gemini-chat-input-area">
-            <input type="text" class="gemini-chat-input" placeholder="Type your message..." />
-            <button class="gemini-chat-send">Send</button>
-          </div>
-        </div>
-      </div>
+
 
       <div class="window resizable" id="minesweeper" style="width: 400px; height: 450px">
         <div class="window-titlebar">
@@ -877,7 +730,6 @@
         <div class="start-menu-item" data-app="notepad">GemNotes</div>
         <div class="start-menu-item" data-app="paint">GemPaint</div>
         <div class="start-menu-item" data-app="doom">Doom II</div>
-        <div class="start-menu-item" data-app="gemini">Gemini App</div>
         <div class="start-menu-item" data-app="minesweeper">GemSweeper</div>
         <div class="start-menu-item" data-app="mediaPlayer">GemPlayer</div>
       </div>
@@ -891,10 +743,7 @@
         <div id="taskbar-apps"></div>
       </div>
 
-      <div id="paint-assistant">
-        <div class="assistant-bubble">Thinking...</div>
-        <img src="https://storage.googleapis.com/gemini-95-icons/robot-assistant.gif" alt="Paint Assistant" class="assistant-image" />
-      </div>
+
     </div>
     <script type="module" src="script.js"></script>
   </body>
