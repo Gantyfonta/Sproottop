@@ -22,6 +22,9 @@ let highestZIndex = 20; // Start z-index for active windows
 const openApps = new Map(); // Store open apps and their elements
 let paintCritiqueIntervalId = null; // Timer for paint critiques
 
+// Load saved settings
+loadSettings();
+
 // Store ResizeObservers to disconnect them later
 const paintResizeObserverMap = new Map();
 
@@ -143,10 +146,11 @@ async function openApp(appName) {
     });
 
     taskbarAppsContainer.appendChild(taskbarButton);
-    openApps.set(appName, { windowEl: windowElement, taskbarButton: taskbarButton });
+    openApps.set(appName, { windowEl: windowElement, taskbarButton: taskbarButton, cleanup: null });
     taskbarButton.classList.add('active');
 
     // Initialize specific applications
+    let cleanup = null;
     if (appName === 'paint') {
         initSimplePaintApp(windowElement);
     }
@@ -191,13 +195,17 @@ async function openApp(appName) {
         initCasino(windowElement);
     }
     else if (appName === 'pinball') {
-        initPinball(windowElement);
+        cleanup = initPinball(windowElement);
     }
     else if (appName === 'extensionManager') {
         initExtensionManager(windowElement);
     }
     else if (appName === 'sprootCode') {
         initSprootCode(windowElement);
+    }
+
+    if (cleanup) {
+        openApps.get(appName).cleanup = cleanup;
     }
 }
 
@@ -206,7 +214,11 @@ function closeApp(appName) {
     const appData = openApps.get(appName);
     if (!appData) return;
 
-    const { windowEl, taskbarButton } = appData;
+    const { windowEl, taskbarButton, cleanup } = appData;
+
+    if (cleanup && typeof cleanup === 'function') {
+        cleanup();
+    }
 
     windowEl.style.display = 'none';
     windowEl.classList.remove('active');
@@ -750,6 +762,18 @@ function initSettings(windowElement) {
     const bgInput = windowElement.querySelector('#bg-url-input');
     const applyBgBtn = windowElement.querySelector('#apply-bg-btn');
     const themeColorInput = windowElement.querySelector('#theme-color-input');
+    const appIconSelect = windowElement.querySelector('#app-icon-select');
+    const iconUploadInput = windowElement.querySelector('#icon-upload-input');
+    const applyIconBtn = windowElement.querySelector('#apply-icon-btn');
+    const resetIconsBtn = windowElement.querySelector('#reset-icons-btn');
+
+    // Set initial values in inputs if they exist in localStorage
+    if (bgInput) {
+        bgInput.value = localStorage.getItem('sproot95_bg_url') || '';
+    }
+    if (themeColorInput) {
+        themeColorInput.value = localStorage.getItem('sproot95_theme_color') || '#008080';
+    }
 
     if (applyBgBtn && bgInput) {
         applyBgBtn.addEventListener('click', () => {
@@ -757,6 +781,11 @@ function initSettings(windowElement) {
             if (url) {
                 document.body.style.backgroundImage = `url('${url}')`;
                 document.body.style.backgroundColor = 'transparent';
+                localStorage.setItem('sproot95_bg_url', url);
+            } else {
+                document.body.style.backgroundImage = 'none';
+                document.body.style.backgroundColor = '#008080';
+                localStorage.removeItem('sproot95_bg_url');
             }
         });
     }
@@ -764,18 +793,86 @@ function initSettings(windowElement) {
     if (themeColorInput) {
         themeColorInput.addEventListener('input', (e) => {
             const color = e.target.value;
-            document.documentElement.style.setProperty('--theme-color', color);
-            // Update taskbar and start menu colors
-            const taskbar = document.getElementById('taskbar');
-            const startMenu = document.getElementById('start-menu');
-            const startButton = document.getElementById('start-button');
-            if (taskbar) taskbar.style.backgroundColor = color;
-            if (startMenu) startMenu.style.backgroundColor = color;
-            if (startButton) {
-                startButton.style.backgroundColor = '#FFF200'; // Keep yellow start button
-                startButton.style.color = color;
+            applyThemeColor(color);
+            localStorage.setItem('sproot95_theme_color', color);
+        });
+    }
+
+    if (applyIconBtn && appIconSelect && iconUploadInput) {
+        applyIconBtn.addEventListener('click', () => {
+            const appName = appIconSelect.value;
+            const file = iconUploadInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const base64 = e.target.result;
+                    applyAppIcon(appName, base64);
+                    saveAppIcon(appName, base64);
+                };
+                reader.readAsDataURL(file);
             }
         });
+    }
+
+    if (resetIconsBtn) {
+        resetIconsBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset all icons to default?')) {
+                resetAllIcons();
+            }
+        });
+    }
+}
+
+function applyAppIcon(appName, iconSrc) {
+    const iconElement = findIconElement(appName);
+    if (iconElement) {
+        const img = iconElement.querySelector('img');
+        if (img) img.src = iconSrc;
+    }
+}
+
+function saveAppIcon(appName, iconSrc) {
+    const customIcons = JSON.parse(localStorage.getItem('sproot95_custom_icons') || '{}');
+    customIcons[appName] = iconSrc;
+    localStorage.setItem('sproot95_custom_icons', JSON.stringify(customIcons));
+}
+
+function resetAllIcons() {
+    localStorage.removeItem('sproot95_custom_icons');
+    location.reload(); // Simplest way to restore defaults
+}
+
+function applyThemeColor(color) {
+    document.documentElement.style.setProperty('--theme-color', color);
+    // Update taskbar and start menu colors
+    const taskbar = document.getElementById('taskbar');
+    const startMenu = document.getElementById('start-menu');
+    const startButton = document.getElementById('start-button');
+    if (taskbar) taskbar.style.backgroundColor = color;
+    if (startMenu) startMenu.style.backgroundColor = color;
+    if (startButton) {
+        startButton.style.backgroundColor = '#FFF200'; // Keep yellow start button
+        startButton.style.color = color;
+    }
+}
+
+function loadSettings() {
+    const savedBgUrl = localStorage.getItem('sproot95_bg_url');
+    const savedThemeColor = localStorage.getItem('sproot95_theme_color');
+    const customIcons = JSON.parse(localStorage.getItem('sproot95_custom_icons') || '{}');
+
+    if (savedBgUrl) {
+        document.body.style.backgroundImage = `url('${savedBgUrl}')`;
+        document.body.style.backgroundColor = 'transparent';
+    }
+
+    if (savedThemeColor) {
+        applyThemeColor(savedThemeColor);
+    }
+
+    // Apply custom icons
+    for (const appName in customIcons) {
+        applyAppIcon(appName, customIcons[appName]);
     }
 }
 
@@ -1228,115 +1325,253 @@ function initPinball(windowElement) {
     const startBtn = windowElement.querySelector('#pinball-start');
 
     let score = 0;
-    let highscore = 0;
+    let highscore = localStorage.getItem('sproot95_pinball_highscore') || 0;
+    highscoreEl.textContent = highscore;
+
     let gameRunning = false;
-    let ball = { x: 200, y: 400, dx: 2, dy: -4, radius: 8 };
-    let paddleWidth = 80;
-    let leftPaddle = { x: 50, y: 450, width: paddleWidth, height: 10, active: false };
-    let rightPaddle = { x: 250, y: 450, width: paddleWidth, height: 10, active: false };
-    let bumpers = [
-        { x: 100, y: 100, r: 20, color: 'red' },
-        { x: 280, y: 100, r: 20, color: 'blue' },
-        { x: 190, y: 200, r: 25, color: 'green' }
+    let gameOver = false;
+    let ball = { x: 360, y: 480, dx: 0, dy: 0, radius: 8, gravity: 0.15, friction: 0.995 };
+    
+    const flipperWidth = 80;
+    const flipperHeight = 14;
+    const leftFlipper = { x: 90, y: 450, angle: 0.5, targetAngle: 0.5, pivotX: 90, pivotY: 450 };
+    const rightFlipper = { x: 260, y: 450, angle: -0.5, targetAngle: -0.5, pivotX: 260, pivotY: 450 };
+
+    const bumpers = [
+        { x: 100, y: 100, r: 25, color: '#ff0055', score: 100, active: 0 },
+        { x: 250, y: 100, r: 25, color: '#00ff55', score: 100, active: 0 },
+        { x: 175, y: 180, r: 30, color: '#00aaff', score: 200, active: 0 },
+        { x: 50, y: 250, r: 15, color: '#ffff00', score: 50, active: 0 },
+        { x: 300, y: 250, r: 15, color: '#ffff00', score: 50, active: 0 }
     ];
 
-    function draw() {
-        if (!gameRunning) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const walls = [
+        { x1: 0, y1: 0, x2: 380, y2: 0 }, // Top
+        { x1: 0, y1: 0, x2: 0, y2: 500 }, // Left
+        { x1: 380, y1: 0, x2: 380, y2: 500 }, // Right
+        { x1: 340, y1: 100, x2: 340, y2: 500 }, // Launcher lane wall
+        { x1: 0, y1: 400, x2: 80, y2: 460 }, // Left drain slope
+        { x1: 340, y1: 400, x2: 270, y2: 460 } // Right drain slope
+    ];
 
-        // Draw ball
+    function drawFlipper(f, isLeft) {
+        ctx.save();
+        ctx.translate(f.pivotX, f.pivotY);
+        ctx.rotate(f.angle);
+        
+        // Flipper body
         ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "white";
+        const x = isLeft ? 0 : -flipperWidth;
+        ctx.roundRect(x, -flipperHeight/2, flipperWidth, flipperHeight, 7);
+        ctx.fillStyle = "#c0c0c0";
         ctx.fill();
-        ctx.closePath();
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Pivot point
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        ctx.fillStyle = "black";
+        ctx.fill();
+        
+        ctx.restore();
+    }
 
-        // Draw paddles
-        ctx.fillStyle = leftPaddle.active ? "cyan" : "gray";
-        ctx.fillRect(leftPaddle.x, leftPaddle.y, leftPaddle.width, leftPaddle.height);
-        ctx.fillStyle = rightPaddle.active ? "cyan" : "gray";
-        ctx.fillRect(rightPaddle.x, rightPaddle.y, rightPaddle.width, rightPaddle.height);
+    function update() {
+        if (!gameRunning) return;
+
+        // Gravity and friction
+        ball.dy += ball.gravity;
+        ball.dx *= ball.friction;
+        ball.dy *= ball.friction;
+
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+
+        // Wall collisions (simple circle-line)
+        walls.forEach(w => {
+            const dx = w.x2 - w.x1;
+            const dy = w.y2 - w.y1;
+            const lenSq = dx*dx + dy*dy;
+            const t = Math.max(0, Math.min(1, ((ball.x - w.x1) * dx + (ball.y - w.y1) * dy) / lenSq));
+            const projX = w.x1 + t * dx;
+            const projY = w.y1 + t * dy;
+            const dist = Math.sqrt((ball.x - projX)**2 + (ball.y - projY)**2);
+
+            if (dist < ball.radius) {
+                const normalX = (ball.x - projX) / dist;
+                const normalY = (ball.y - projY) / dist;
+                
+                // Reflect velocity
+                const dot = ball.dx * normalX + ball.dy * normalY;
+                ball.dx = (ball.dx - 2 * dot * normalX) * 0.8;
+                ball.dy = (ball.dy - 2 * dot * normalY) * 0.8;
+                
+                // Reposition ball
+                ball.x = projX + normalX * ball.radius;
+                ball.y = projY + normalY * ball.radius;
+            }
+        });
+
+        // Flipper logic
+        leftFlipper.angle += (leftFlipper.targetAngle - leftFlipper.angle) * 0.4;
+        rightFlipper.angle += (rightFlipper.targetAngle - rightFlipper.angle) * 0.4;
+
+        // Flipper collision
+        function checkFlipperCollision(f, isLeft) {
+            const dx = ball.x - f.pivotX;
+            const dy = ball.y - f.pivotY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist < flipperWidth + ball.radius) {
+                const relX = dx * Math.cos(-f.angle) - dy * Math.sin(-f.angle);
+                const relY = dx * Math.sin(-f.angle) + dy * Math.cos(-f.angle);
+                
+                const minX = isLeft ? 0 : -flipperWidth;
+                const maxX = isLeft ? flipperWidth : 0;
+                
+                if (relX > minX - ball.radius && relX < maxX + ball.radius && 
+                    relY > -flipperHeight/2 - ball.radius && relY < flipperHeight/2 + ball.radius) {
+                    
+                    const speed = Math.sqrt(ball.dx*ball.dx + ball.dy*ball.dy);
+                    const bounceAngle = f.angle - Math.PI/2;
+                    const boost = Math.abs(f.targetAngle - f.angle) > 0.05 ? 6 : 1;
+                    
+                    ball.dx = Math.cos(bounceAngle) * (speed + boost);
+                    ball.dy = Math.sin(bounceAngle) * (speed + boost);
+                    ball.y -= 5; // Prevent sticking
+                    
+                    score += 10;
+                    scoreEl.textContent = score;
+                }
+            }
+        }
+
+        checkFlipperCollision(leftFlipper, true);
+        checkFlipperCollision(rightFlipper, false);
+
+        // Bumper collisions
+        bumpers.forEach(b => {
+            const dx = ball.x - b.x;
+            const dy = ball.y - b.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < ball.radius + b.r) {
+                const angle = Math.atan2(dy, dx);
+                const speed = Math.sqrt(ball.dx*ball.dx + ball.dy*ball.dy) + 3;
+                ball.dx = Math.cos(angle) * speed;
+                ball.dy = Math.sin(angle) * speed;
+                
+                score += b.score;
+                scoreEl.textContent = score;
+                b.active = 10;
+            }
+        });
+
+        // Out of bounds (Drain)
+        if (ball.y > canvas.height + ball.radius) {
+            gameRunning = false;
+            gameOver = true;
+            if (score > highscore) {
+                highscore = score;
+                highscoreEl.textContent = highscore;
+                localStorage.setItem('sproot95_pinball_highscore', highscore);
+            }
+        }
+    }
+
+    function draw() {
+        ctx.fillStyle = "#111";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw walls
+        ctx.strokeStyle = "#444";
+        ctx.lineWidth = 4;
+        walls.forEach(w => {
+            ctx.beginPath();
+            ctx.moveTo(w.x1, w.y1);
+            ctx.lineTo(w.x2, w.y2);
+            ctx.stroke();
+        });
 
         // Draw bumpers
         bumpers.forEach(b => {
             ctx.beginPath();
-            ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+            ctx.arc(b.x, b.y, b.r + (b.active > 0 ? 2 : 0), 0, Math.PI * 2);
             ctx.fillStyle = b.color;
             ctx.fill();
-            ctx.closePath();
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            if (b.active > 0) b.active--;
         });
 
-        // Physics
-        ball.x += ball.dx;
-        ball.y += ball.dy;
+        // Draw flippers
+        drawFlipper(leftFlipper, true);
+        drawFlipper(rightFlipper, false);
 
-        // Walls
-        if (ball.x + ball.dx > canvas.width - ball.radius || ball.x + ball.dx < ball.radius) {
-            ball.dx = -ball.dx;
-        }
-        if (ball.y + ball.dy < ball.radius) {
-            ball.dy = -ball.dy;
-        } else if (ball.y + ball.dy > canvas.height - ball.radius) {
-            // Game over
-            gameRunning = false;
-            if (score > highscore) {
-                highscore = score;
-                highscoreEl.textContent = highscore;
-            }
-            alert("Game Over! Score: " + score);
-            return;
-        }
+        // Draw ball
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#ddd";
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "white";
+        ctx.fill();
+        ctx.shadowBlur = 0;
 
-        // Paddle collision
-        if (ball.y + ball.dy > leftPaddle.y && ball.y + ball.dy < leftPaddle.y + leftPaddle.height) {
-            if (ball.x > leftPaddle.x && ball.x < leftPaddle.x + leftPaddle.width) {
-                ball.dy = -Math.abs(ball.dy);
-                if (leftPaddle.active) ball.dy -= 1;
-                score += 10;
-                scoreEl.textContent = score;
-            }
-        }
-        if (ball.y + ball.dy > rightPaddle.y && ball.y + ball.dy < rightPaddle.y + rightPaddle.height) {
-            if (ball.x > rightPaddle.x && ball.x < rightPaddle.x + rightPaddle.width) {
-                ball.dy = -Math.abs(ball.dy);
-                if (rightPaddle.active) ball.dy -= 1;
-                score += 10;
-                scoreEl.textContent = score;
-            }
+        if (gameOver) {
+            ctx.fillStyle = "rgba(0,0,0,0.8)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.font = "bold 32px 'Courier New'";
+            ctx.textAlign = "center";
+            ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2 - 20);
+            ctx.font = "20px 'Courier New'";
+            ctx.fillText("Score: " + score, canvas.width/2, canvas.height/2 + 30);
+            ctx.font = "14px 'Courier New'";
+            ctx.fillText("Press Start to play again", canvas.width/2, canvas.height/2 + 60);
         }
 
-        // Bumper collision
-        bumpers.forEach(b => {
-            let dist = Math.sqrt((ball.x - b.x) ** 2 + (ball.y - b.y) ** 2);
-            if (dist < ball.radius + b.r) {
-                ball.dx = (ball.x - b.x) / 5;
-                ball.dy = (ball.y - b.y) / 5;
-                score += 50;
-                scoreEl.textContent = score;
-            }
-        });
-
-        requestAnimationFrame(draw);
+        update();
+        if (gameRunning || gameOver) {
+            requestAnimationFrame(draw);
+        }
     }
 
     startBtn.onclick = () => {
-        ball = { x: 200, y: 100, dx: 2, dy: 4, radius: 8 };
+        // Launch ball from plunger lane
+        ball = { x: 360, y: 480, dx: 0, dy: -12, radius: 8, gravity: 0.15, friction: 0.995 };
         score = 0;
         scoreEl.textContent = score;
         gameRunning = true;
+        gameOver = false;
         draw();
     };
 
-    window.addEventListener('keydown', (e) => {
+    const handleKeyDown = (e) => {
         if (windowElement !== activeWindow) return;
-        if (e.key === 'ArrowLeft') leftPaddle.active = true;
-        if (e.key === 'ArrowRight') rightPaddle.active = true;
-    });
-    window.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowLeft') leftFlipper.targetAngle = -0.6;
+        if (e.key === 'ArrowRight') rightFlipper.targetAngle = 0.6;
+    };
+
+    const handleKeyUp = (e) => {
         if (windowElement !== activeWindow) return;
-        if (e.key === 'ArrowLeft') leftPaddle.active = false;
-        if (e.key === 'ArrowRight') rightPaddle.active = false;
-    });
+        if (e.key === 'ArrowLeft') leftFlipper.targetAngle = 0.5;
+        if (e.key === 'ArrowRight') rightFlipper.targetAngle = -0.5;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    // Initial draw
+    draw();
+
+    // Return cleanup function
+    return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
+        gameRunning = false;
+    };
 }
 
 function initSprootCode(windowElement) {

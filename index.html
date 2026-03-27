@@ -892,13 +892,36 @@
             <div class="window-close window-control-button">✕</div>
           </div>
         </div>
-        <div class="window-content" style="background-color: #c0c0c0; padding: 15px;">
+        <div class="window-content" style="background-color: #c0c0c0; padding: 15px; overflow-y: auto;">
           <p>Background Image URL:</p>
           <input type="text" id="bg-url-input" style="width: 100%; margin-bottom: 10px;" placeholder="https://..." />
-          <button id="apply-bg-btn" style="width: 100%; height: 30px; cursor: pointer;">Apply Background</button>
+          <button id="apply-bg-btn" style="width: 100%; height: 30px; cursor: pointer; margin-bottom: 10px;">Apply Background</button>
           <hr style="margin: 15px 0;" />
           <p>Theme Color:</p>
           <input type="color" id="theme-color-input" value="#008B47" style="width: 100%; height: 30px; cursor: pointer;" />
+          <hr style="margin: 15px 0;" />
+          <p>Custom App Icon:</p>
+          <select id="app-icon-select" style="width: 100%; margin-bottom: 10px;">
+            <option value="myComputer">My Computer</option>
+            <option value="chrome">SprootBrowser</option>
+            <option value="notepad">SprootPad</option>
+            <option value="paint">SprootPaint</option>
+            <option value="doom">DOOM</option>
+            <option value="minesweeper">Minesweeper</option>
+            <option value="casino">SprootCasino</option>
+            <option value="pinball">Pinball</option>
+            <option value="sprootCode">SprootCode</option>
+            <option value="mediaPlayer">SprootPlayer</option>
+            <option value="calculator">Calculator</option>
+            <option value="settings">Settings</option>
+            <option value="clock">Clock</option>
+            <option value="recycle">Recycle Bin</option>
+            <option value="chat">SprootChat</option>
+            <option value="taskManager">Task Manager</option>
+          </select>
+          <input type="file" id="icon-upload-input" accept="image/*" style="width: 100%; margin-bottom: 10px;" />
+          <button id="apply-icon-btn" style="width: 100%; height: 30px; cursor: pointer;">Apply Icon</button>
+          <button id="reset-icons-btn" style="width: 100%; height: 30px; cursor: pointer; margin-top: 5px;">Reset All Icons</button>
         </div>
       </div>
 
