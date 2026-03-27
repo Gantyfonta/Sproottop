@@ -116,7 +116,10 @@ async function openApp(appName) {
             case 'settings': iconSrc = 'https://win98icons.alexmeub.com/icons/png/settings_gear-0.png'; title = 'SprootSettings'; break;
             case 'clock': iconSrc = 'https://win98icons.alexmeub.com/icons/png/clock-0.png'; title = 'SprootClock'; break;
             case 'recycle': iconSrc = 'https://win98icons.alexmeub.com/icons/png/recycle_bin_empty-0.png'; title = 'SprootRecycle'; break;
-            case 'chat': iconSrc = 'https://win98icons.alexmeub.com/icons/png/msn-0.png'; title = 'SprootChat'; break;
+            case 'chat': iconSrc = 'https://win98icons.alexmeub.com/icons/png/msn_messenger-0.png'; title = 'SprootChat'; break;
+            case 'taskManager': iconSrc = 'https://win98icons.alexmeub.com/icons/png/task_manager-0.png'; title = 'SprootTask'; break;
+            case 'casino': iconSrc = 'https://win98icons.alexmeub.com/icons/png/cards-0.png'; title = 'SprootCasino'; break;
+            case 'pinball': iconSrc = 'https://win98icons.alexmeub.com/icons/png/pinball-0.png'; title = 'SprootPinball'; break;
          }
     }
 
@@ -175,6 +178,18 @@ async function openApp(appName) {
     }
     else if (appName === 'chat') {
         initChat(windowElement);
+    }
+    else if (appName === 'notepad') {
+        initNotepad(windowElement);
+    }
+    else if (appName === 'taskManager') {
+        initTaskManager(windowElement);
+    }
+    else if (appName === 'casino') {
+        initCasino(windowElement);
+    }
+    else if (appName === 'pinball') {
+        initPinball(windowElement);
     }
 }
 
@@ -956,6 +971,268 @@ function initChat(windowElement) {
     sendBtn.addEventListener('click', sendMessage);
     input.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendMessage();
+    });
+}
+
+function initNotepad(windowElement) {
+    const textarea = windowElement.querySelector('.notepad-textarea');
+    const newBtn = document.getElementById('notepad-new');
+    const openBtn = document.getElementById('notepad-open');
+    const saveBtn = document.getElementById('notepad-save');
+    const exitBtn = document.getElementById('notepad-exit');
+
+    if (newBtn) {
+        newBtn.onclick = () => {
+            if (textarea.value && !confirm("Discard changes?")) return;
+            textarea.value = '';
+        };
+    }
+    if (openBtn) {
+        openBtn.onclick = () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.txt';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    textarea.value = event.target.result;
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        };
+    }
+    if (saveBtn) {
+        saveBtn.onclick = () => {
+            const blob = new Blob([textarea.value], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'note.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+    }
+    if (exitBtn) {
+        exitBtn.onclick = () => closeApp('notepad');
+    }
+}
+
+function initTaskManager(windowElement) {
+    const taskList = windowElement.querySelector('#task-list');
+    
+    function updateTaskList() {
+        if (!taskList) return;
+        taskList.innerHTML = '';
+        openApps.forEach((data, appName) => {
+            const item = document.createElement('div');
+            item.style.padding = '5px';
+            item.style.borderBottom = '1px solid #eee';
+            item.style.display = 'flex';
+            item.style.justifyContent = 'space-between';
+            item.style.alignItems = 'center';
+            item.style.fontSize = '0.8rem';
+            
+            const name = document.createElement('span');
+            name.textContent = appName;
+            
+            const endBtn = document.createElement('button');
+            endBtn.textContent = 'End Task';
+            endBtn.style.fontSize = '0.7rem';
+            endBtn.onclick = () => {
+                closeApp(appName);
+                updateTaskList();
+            };
+            
+            item.appendChild(name);
+            item.appendChild(endBtn);
+            taskList.appendChild(item);
+        });
+    }
+    
+    updateTaskList();
+    // Update every 2 seconds if open
+    const interval = setInterval(() => {
+        if (windowElement.style.display === 'none') {
+            clearInterval(interval);
+            return;
+        }
+        updateTaskList();
+    }, 2000);
+}
+
+function initCasino(windowElement) {
+    const spinBtn = windowElement.querySelector('#casino-spin');
+    const balanceEl = windowElement.querySelector('#casino-balance');
+    const resultEl = windowElement.querySelector('#casino-result');
+    const slots = [
+        windowElement.querySelector('#slot-1'),
+        windowElement.querySelector('#slot-2'),
+        windowElement.querySelector('#slot-3')
+    ];
+    
+    const symbols = ['🍒', '🍋', '🔔', '💎', '7️⃣'];
+    let balance = 100;
+
+    spinBtn.onclick = () => {
+        if (balance < 10) {
+            resultEl.textContent = "Not enough money!";
+            return;
+        }
+
+        balance -= 10;
+        balanceEl.textContent = balance;
+        resultEl.textContent = "Spinning...";
+        spinBtn.disabled = true;
+
+        let spins = 0;
+        const spinInterval = setInterval(() => {
+            slots.forEach(slot => {
+                slot.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+            });
+            spins++;
+            if (spins > 10) {
+                clearInterval(spinInterval);
+                const final = slots.map(() => symbols[Math.floor(Math.random() * symbols.length)]);
+                slots.forEach((slot, i) => slot.textContent = final[i]);
+                
+                if (final[0] === final[1] && final[1] === final[2]) {
+                    let win = 50;
+                    if (final[0] === '7️⃣') win = 200;
+                    else if (final[0] === '💎') win = 100;
+                    balance += win;
+                    resultEl.textContent = `JACKPOT! You won $${win}!`;
+                } else if (final[0] === final[1] || final[1] === final[2] || final[0] === final[2]) {
+                    balance += 15;
+                    resultEl.textContent = "Small win! You won $15!";
+                } else {
+                    resultEl.textContent = "Try again!";
+                }
+                balanceEl.textContent = balance;
+                spinBtn.disabled = false;
+            }
+        }, 100);
+    };
+}
+
+function initPinball(windowElement) {
+    const canvas = windowElement.querySelector('#pinball-canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = windowElement.querySelector('#pinball-score');
+    const highscoreEl = windowElement.querySelector('#pinball-highscore');
+    const startBtn = windowElement.querySelector('#pinball-start');
+
+    let score = 0;
+    let highscore = 0;
+    let gameRunning = false;
+    let ball = { x: 200, y: 400, dx: 2, dy: -4, radius: 8 };
+    let paddleWidth = 80;
+    let leftPaddle = { x: 50, y: 450, width: paddleWidth, height: 10, active: false };
+    let rightPaddle = { x: 250, y: 450, width: paddleWidth, height: 10, active: false };
+    let bumpers = [
+        { x: 100, y: 100, r: 20, color: 'red' },
+        { x: 280, y: 100, r: 20, color: 'blue' },
+        { x: 190, y: 200, r: 25, color: 'green' }
+    ];
+
+    function draw() {
+        if (!gameRunning) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw ball
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "white";
+        ctx.fill();
+        ctx.closePath();
+
+        // Draw paddles
+        ctx.fillStyle = leftPaddle.active ? "cyan" : "gray";
+        ctx.fillRect(leftPaddle.x, leftPaddle.y, leftPaddle.width, leftPaddle.height);
+        ctx.fillStyle = rightPaddle.active ? "cyan" : "gray";
+        ctx.fillRect(rightPaddle.x, rightPaddle.y, rightPaddle.width, rightPaddle.height);
+
+        // Draw bumpers
+        bumpers.forEach(b => {
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+            ctx.fillStyle = b.color;
+            ctx.fill();
+            ctx.closePath();
+        });
+
+        // Physics
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+
+        // Walls
+        if (ball.x + ball.dx > canvas.width - ball.radius || ball.x + ball.dx < ball.radius) {
+            ball.dx = -ball.dx;
+        }
+        if (ball.y + ball.dy < ball.radius) {
+            ball.dy = -ball.dy;
+        } else if (ball.y + ball.dy > canvas.height - ball.radius) {
+            // Game over
+            gameRunning = false;
+            if (score > highscore) {
+                highscore = score;
+                highscoreEl.textContent = highscore;
+            }
+            alert("Game Over! Score: " + score);
+            return;
+        }
+
+        // Paddle collision
+        if (ball.y + ball.dy > leftPaddle.y && ball.y + ball.dy < leftPaddle.y + leftPaddle.height) {
+            if (ball.x > leftPaddle.x && ball.x < leftPaddle.x + leftPaddle.width) {
+                ball.dy = -Math.abs(ball.dy);
+                if (leftPaddle.active) ball.dy -= 1;
+                score += 10;
+                scoreEl.textContent = score;
+            }
+        }
+        if (ball.y + ball.dy > rightPaddle.y && ball.y + ball.dy < rightPaddle.y + rightPaddle.height) {
+            if (ball.x > rightPaddle.x && ball.x < rightPaddle.x + rightPaddle.width) {
+                ball.dy = -Math.abs(ball.dy);
+                if (rightPaddle.active) ball.dy -= 1;
+                score += 10;
+                scoreEl.textContent = score;
+            }
+        }
+
+        // Bumper collision
+        bumpers.forEach(b => {
+            let dist = Math.sqrt((ball.x - b.x) ** 2 + (ball.y - b.y) ** 2);
+            if (dist < ball.radius + b.r) {
+                ball.dx = (ball.x - b.x) / 5;
+                ball.dy = (ball.y - b.y) / 5;
+                score += 50;
+                scoreEl.textContent = score;
+            }
+        });
+
+        requestAnimationFrame(draw);
+    }
+
+    startBtn.onclick = () => {
+        ball = { x: 200, y: 100, dx: 2, dy: 4, radius: 8 };
+        score = 0;
+        scoreEl.textContent = score;
+        gameRunning = true;
+        draw();
+    };
+
+    window.addEventListener('keydown', (e) => {
+        if (windowElement !== activeWindow) return;
+        if (e.key === 'ArrowLeft') leftPaddle.active = true;
+        if (e.key === 'ArrowRight') rightPaddle.active = true;
+    });
+    window.addEventListener('keyup', (e) => {
+        if (windowElement !== activeWindow) return;
+        if (e.key === 'ArrowLeft') leftPaddle.active = false;
+        if (e.key === 'ArrowRight') rightPaddle.active = false;
     });
 }
 

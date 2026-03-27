@@ -150,6 +150,45 @@
         border-bottom: 1px solid #FFFFFF;
         box-shadow: none;
       }
+      .window-menubar {
+        display: flex;
+        background-color: #C0C0C0;
+        padding: 2px 5px;
+        border-bottom: 1px solid #808080;
+        font-size: 0.75rem;
+      }
+      .window-menu-item {
+        padding: 2px 6px;
+        cursor: pointer;
+        position: relative;
+      }
+      .window-menu-item:hover {
+        background-color: #000080;
+        color: white;
+      }
+      .window-menu-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background-color: #C0C0C0;
+        border: 1px solid #808080;
+        box-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+        z-index: 100;
+        min-width: 100px;
+      }
+      .window-menu-item:hover .window-menu-dropdown {
+        display: block;
+      }
+      .window-menu-dropdown-item {
+        padding: 4px 10px;
+        color: black;
+        white-space: nowrap;
+      }
+      .window-menu-dropdown-item:hover {
+        background-color: #000080;
+        color: white;
+      }
       .window-content {
         padding: 2px;
         font-size: 0.9rem;
@@ -611,6 +650,14 @@
         <img src="https://storage.googleapis.com/gemini-95-icons/gemsweeper.png" alt="Minesweeper" />
         <span>SprootSweeper</span>
       </div>
+      <div class="icon" data-app="casino">
+        <img src="https://win98icons.alexmeub.com/icons/png/cards-0.png" alt="Casino" />
+        <span>SprootCasino</span>
+      </div>
+      <div class="icon" data-app="pinball">
+        <img src="https://win98icons.alexmeub.com/icons/png/pinball-0.png" alt="Pinball" />
+        <span>SprootPinball</span>
+      </div>
       <div class="icon" data-app="mediaPlayer">
         <img src="https://storage.googleapis.com/gemini-95-icons/ytmediaplayer.png" alt="Media Player" />
         <span>SprootPlayer</span>
@@ -632,8 +679,12 @@
         <span>SprootRecycle</span>
       </div>
       <div class="icon" data-app="chat">
-        <img src="https://win98icons.alexmeub.com/icons/png/msn-0.png" alt="Chat" />
+        <img src="https://win98icons.alexmeub.com/icons/png/msn_messenger-0.png" alt="Chat" />
         <span>SprootChat</span>
+      </div>
+      <div class="icon" data-app="taskManager">
+        <img src="https://win98icons.alexmeub.com/icons/png/task_manager-0.png" alt="Task Manager" />
+        <span>SprootTask</span>
       </div>
 
       <!-- Windows -->
@@ -687,6 +738,18 @@
           <div class="window-controls">
             <div class="window-minimize window-control-button">−</div>
             <div class="window-close window-control-button">✕</div>
+          </div>
+        </div>
+        <div class="window-menubar">
+          <div class="window-menu-item">
+            File
+            <div class="window-menu-dropdown">
+              <div class="window-menu-dropdown-item" id="notepad-new">New</div>
+              <div class="window-menu-dropdown-item" id="notepad-open">Open...</div>
+              <div class="window-menu-dropdown-item" id="notepad-save">Save</div>
+              <hr style="margin: 2px 0; border: 0; border-top: 1px solid #808080;" />
+              <div class="window-menu-dropdown-item" id="notepad-exit">Exit</div>
+            </div>
           </div>
         </div>
         <div class="window-content">
@@ -877,6 +940,61 @@
         </div>
       </div>
 
+      <div class="window" id="taskManager" style="width: 300px; height: 400px;">
+        <div class="window-titlebar">
+          <span class="window-title">SprootTask</span>
+          <div class="window-controls">
+            <div class="window-minimize window-control-button">−</div>
+            <div class="window-close window-control-button">✕</div>
+          </div>
+        </div>
+        <div class="window-content" style="background-color: white; padding: 10px;">
+          <p style="font-size: 0.8rem; font-weight: bold; margin-bottom: 10px;">Running Applications:</p>
+          <div id="task-list" style="border: 1px inset #808080; height: 300px; overflow-y: auto;">
+            <!-- Tasks will be listed here -->
+          </div>
+        </div>
+      </div>
+
+      <div class="window resizable" id="casino" style="width: 350px; height: 450px;">
+        <div class="window-titlebar">
+          <span class="window-title">SprootCasino</span>
+          <div class="window-controls">
+            <div class="window-minimize window-control-button">−</div>
+            <div class="window-close window-control-button">✕</div>
+          </div>
+        </div>
+        <div class="window-content" style="background-color: #008000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gold; font-family: 'Courier New', Courier, monospace;">
+          <h2 style="margin-bottom: 20px; text-shadow: 2px 2px black;">SLOT MACHINE</h2>
+          <div style="display: flex; gap: 10px; background: #333; padding: 20px; border: 5px solid gold; border-radius: 10px; margin-bottom: 20px;">
+            <div id="slot-1" style="width: 60px; height: 80px; background: white; color: black; font-size: 3rem; display: flex; align-items: center; justify-content: center; border: 2px solid #888;">🍒</div>
+            <div id="slot-2" style="width: 60px; height: 80px; background: white; color: black; font-size: 3rem; display: flex; align-items: center; justify-content: center; border: 2px solid #888;">🍒</div>
+            <div id="slot-3" style="width: 60px; height: 80px; background: white; color: black; font-size: 3rem; display: flex; align-items: center; justify-content: center; border: 2px solid #888;">🍒</div>
+          </div>
+          <div style="font-size: 1.2rem; margin-bottom: 20px;">Balance: $<span id="casino-balance">100</span></div>
+          <button id="casino-spin" style="padding: 10px 30px; font-size: 1.5rem; background: gold; color: black; border: 3px outset white; cursor: pointer; font-weight: bold;">SPIN ($10)</button>
+          <div id="casino-result" style="margin-top: 20px; height: 20px; font-weight: bold;"></div>
+        </div>
+      </div>
+
+      <div class="window resizable" id="pinball" style="width: 400px; height: 600px;">
+        <div class="window-titlebar">
+          <span class="window-title">SprootPinball</span>
+          <div class="window-controls">
+            <div class="window-minimize window-control-button">−</div>
+            <div class="window-close window-control-button">✕</div>
+          </div>
+        </div>
+        <div class="window-content" style="background-color: black; padding: 0; display: flex; flex-direction: column; align-items: center;">
+          <canvas id="pinball-canvas" width="380" height="500" style="border: 2px solid #555; background: #111; margin-top: 10px;"></canvas>
+          <div style="color: white; font-family: 'Courier New', Courier, monospace; margin-top: 10px;">
+            Score: <span id="pinball-score">0</span> | High Score: <span id="pinball-highscore">0</span>
+          </div>
+          <div style="color: #888; font-size: 0.7rem; margin-top: 5px;">Use Left/Right Arrows to control flippers</div>
+          <button id="pinball-start" style="margin-top: 10px; padding: 5px 20px; background: #c0c0c0; border: 2px outset white; cursor: pointer;">Start Game</button>
+        </div>
+      </div>
+
       <!-- Start Menu -->
       <div class="start-menu" id="start-menu">
         <div class="start-menu-item" data-app="myComputer">My SprootTop</div>
@@ -891,6 +1009,9 @@
         <div class="start-menu-item" data-app="clock">SprootClock</div>
         <div class="start-menu-item" data-app="recycle">SprootRecycle</div>
         <div class="start-menu-item" data-app="chat">SprootChat</div>
+        <div class="start-menu-item" data-app="taskManager">SprootTask</div>
+        <div class="start-menu-item" data-app="casino">SprootCasino</div>
+        <div class="start-menu-item" data-app="pinball">SprootPinball</div>
       </div>
 
       <!-- Taskbar -->
