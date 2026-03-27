@@ -121,6 +121,7 @@ async function openApp(appName) {
             case 'extensionManager': iconSrc = 'https://win98icons.alexmeub.com/icons/png/settings_gear-0.png'; title = 'Extension Manager'; break;
             case 'casino': iconSrc = 'https://win98icons.alexmeub.com/icons/png/cards-0.png'; title = 'SprootCasino'; break;
             case 'pinball': iconSrc = 'https://win98icons.alexmeub.com/icons/png/pinball-0.png'; title = 'SprootPinball'; break;
+            case 'sprootCode': iconSrc = 'https://win98icons.alexmeub.com/icons/png/script_file-0.png'; title = 'SprootCode'; break;
          }
     }
 
@@ -194,6 +195,9 @@ async function openApp(appName) {
     }
     else if (appName === 'extensionManager') {
         initExtensionManager(windowElement);
+    }
+    else if (appName === 'sprootCode') {
+        initSprootCode(windowElement);
     }
 }
 
@@ -1333,6 +1337,39 @@ function initPinball(windowElement) {
         if (e.key === 'ArrowLeft') leftPaddle.active = false;
         if (e.key === 'ArrowRight') rightPaddle.active = false;
     });
+}
+
+function initSprootCode(windowElement) {
+    const editor = windowElement.querySelector('#code-editor');
+    const preview = windowElement.querySelector('#code-preview');
+
+    if (!editor || !preview) return;
+
+    function updatePreview() {
+        const content = editor.value;
+        const doc = preview.contentDocument || preview.contentWindow.document;
+        doc.open();
+        doc.write(content);
+        doc.close();
+    }
+
+    editor.addEventListener('input', updatePreview);
+
+    // Initial content
+    editor.value = `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+        h1 { color: #008080; }
+    </style>
+</head>
+<body>
+    <h1>Hello Sproot!</h1>
+    <p>Type some HTML on the left to see it here.</p>
+</body>
+</html>`;
+    updatePreview();
 }
 
 
