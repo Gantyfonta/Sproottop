@@ -125,6 +125,7 @@ async function openApp(appName) {
             case 'casino': iconSrc = 'https://win98icons.alexmeub.com/icons/png/cards-0.png'; title = 'SprootCasino'; break;
             case 'pinball': iconSrc = 'https://win98icons.alexmeub.com/icons/png/pinball-0.png'; title = 'Space Cadet Pinball'; break;
             case 'sprootCode': iconSrc = 'https://win98icons.alexmeub.com/icons/png/script_file-0.png'; title = 'SprootCode'; break;
+            case 'moinkcraft': iconSrc = 'https://img.icons8.com/color/48/pig.png'; title = 'Moinkcraft'; break;
          }
     }
 
@@ -195,7 +196,7 @@ async function openApp(appName) {
         initCasino(windowElement);
     }
     else if (appName === 'pinball') {
-        // Pinball is now an iframe, no initialization needed
+        cleanup = initPinball(windowElement);
     }
     else if (appName === 'extensionManager') {
         initExtensionManager(windowElement);
@@ -1607,10 +1608,11 @@ function initSnakeGame(windowElement) {
     const scoreEl = windowElement.querySelector('#snake-score');
     const gameOverEl = windowElement.querySelector('#snake-game-over');
     
-    const gridSize = 15;
+    const gridSize = 20;
     const tileCount = canvas.width / gridSize;
     
     let score = 0;
+    let highScore = localStorage.getItem('snake-highscore') || 0;
     let dx = 0;
     let dy = 0;
     let snake = [
@@ -1621,6 +1623,7 @@ function initSnakeGame(windowElement) {
     let food = {x: 5, y: 5};
     let gameLoop = null;
     let isPaused = false;
+    let particles = [];
 
     function drawGame() {
         if (isPaused) return;
@@ -1633,6 +1636,8 @@ function initSnakeGame(windowElement) {
         }
         
         clearCanvas();
+        updateParticles();
+        drawParticles();
         drawFood();
         drawSnake();
         
@@ -1640,27 +1645,80 @@ function initSnakeGame(windowElement) {
     }
 
     function clearCanvas() {
-        ctx.fillStyle = 'black';
+        ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 1;
+        for(let i=0; i<tileCount; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i*gridSize, 0);
+            ctx.lineTo(i*gridSize, canvas.height);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, i*gridSize);
+            ctx.lineTo(canvas.width, i*gridSize);
+            ctx.stroke();
+        }
     }
 
     function drawSnake() {
-        ctx.fillStyle = 'lime';
-        snake.forEach(part => {
-            ctx.fillRect(part.x * gridSize, part.y * gridSize, gridSize - 2, gridSize - 2);
+        snake.forEach((part, index) => {
+            const isHead = index === 0;
+            ctx.shadowBlur = isHead ? 15 : 5;
+            ctx.shadowColor = isHead ? '#00ff00' : '#00aa00';
+            ctx.fillStyle = isHead ? '#00ff00' : '#008800';
+            
+            const r = 4;
+            const x = part.x * gridSize + 1;
+            const y = part.y * gridSize + 1;
+            const w = gridSize - 2;
+            const h = gridSize - 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+            ctx.fill();
+            
+            if (isHead) {
+                ctx.fillStyle = 'black';
+                ctx.shadowBlur = 0;
+                const eyeSize = 3;
+                if (dx === 1) {
+                    ctx.fillRect(x + w - 6, y + 4, eyeSize, eyeSize);
+                    ctx.fillRect(x + w - 6, y + h - 7, eyeSize, eyeSize);
+                } else if (dx === -1) {
+                    ctx.fillRect(x + 3, y + 4, eyeSize, eyeSize);
+                    ctx.fillRect(x + 3, y + h - 7, eyeSize, eyeSize);
+                } else if (dy === -1) {
+                    ctx.fillRect(x + 4, y + 3, eyeSize, eyeSize);
+                    ctx.fillRect(x + w - 7, y + 3, eyeSize, eyeSize);
+                } else {
+                    ctx.fillRect(x + 4, y + h - 6, eyeSize, eyeSize);
+                    ctx.fillRect(x + w - 7, y + h - 6, eyeSize, eyeSize);
+                }
+            }
         });
+        ctx.shadowBlur = 0;
     }
 
     function moveSnake() {
         if (dx === 0 && dy === 0) return;
-        
         const head = {x: snake[0].x + dx, y: snake[0].y + dy};
         snake.unshift(head);
-        
         if (head.x === food.x && head.y === food.y) {
             score += 10;
-            scoreEl.textContent = `Score: ${score}`;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snake-highscore', highScore);
+            }
+            scoreEl.innerHTML = `Score: ${score} <span style="margin-left: 20px; opacity: 0.6;">High: ${highScore}</span>`;
             createFood();
+            createParticles(food.x * gridSize + gridSize/2, food.y * gridSize + gridSize/2, '#ff0000');
         } else {
             snake.pop();
         }
@@ -1669,45 +1727,72 @@ function initSnakeGame(windowElement) {
     function createFood() {
         food.x = Math.floor(Math.random() * tileCount);
         food.y = Math.floor(Math.random() * tileCount);
-        
-        // Ensure food doesn't spawn on snake
         snake.forEach(part => {
             if (part.x === food.x && part.y === food.y) createFood();
         });
     }
 
     function drawFood() {
-        ctx.fillStyle = 'red';
-        ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
+        const pulse = Math.sin(Date.now() / 200) * 2;
+        ctx.shadowBlur = 15 + pulse;
+        ctx.shadowColor = '#ff0000';
+        ctx.fillStyle = '#ff3333';
+        const x = food.x * gridSize + gridSize/2;
+        const y = food.y * gridSize + gridSize/2;
+        const r = (gridSize/2 - 4) + pulse/2;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+
+    function createParticles(x, y, color) {
+        for(let i=0; i<10; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 5,
+                vy: (Math.random() - 0.5) * 5,
+                life: 1.0, color: color
+            });
+        }
+    }
+
+    function updateParticles() {
+        for(let i=particles.length-1; i>=0; i--) {
+            const p = particles[i];
+            p.x += p.vx; p.y += p.vy; p.life -= 0.05;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+    }
+
+    function drawParticles() {
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, 3, 3);
+        });
+        ctx.globalAlpha = 1.0;
     }
 
     function checkGameOver() {
         const head = snake[0];
-        
         if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) return true;
-        
         for (let i = 1; i < snake.length; i++) {
             if (snake[i].x === head.x && snake[i].y === head.y) return true;
         }
-        
         return false;
     }
 
     function gameOver() {
-        gameOverEl.style.display = 'block';
+        gameOverEl.style.display = 'flex';
         clearTimeout(gameLoop);
     }
 
     function resetGame() {
         score = 0;
-        scoreEl.textContent = `Score: ${score}`;
-        dx = 0;
-        dy = 0;
-        snake = [
-            {x: 10, y: 10},
-            {x: 10, y: 11},
-            {x: 10, y: 12}
-        ];
+        scoreEl.innerHTML = `Score: ${score} <span style="margin-left: 20px; opacity: 0.6;">High: ${highScore}</span>`;
+        dx = 0; dy = 0;
+        snake = [{x: 10, y: 10}, {x: 10, y: 11}, {x: 10, y: 12}];
         gameOverEl.style.display = 'none';
         createFood();
         clearTimeout(gameLoop);
@@ -1715,29 +1800,19 @@ function initSnakeGame(windowElement) {
     }
 
     const handleKeydown = (e) => {
-        if (e.code === 'Space' && gameOverEl.style.display === 'block') {
+        if (gameOverEl.style.display === 'flex' && e.code === 'Space') {
             resetGame();
             return;
         }
-        
         switch(e.key) {
-            case 'ArrowUp':
-                if (dy !== 1) { dx = 0; dy = -1; }
-                break;
-            case 'ArrowDown':
-                if (dy !== -1) { dx = 0; dy = 1; }
-                break;
-            case 'ArrowLeft':
-                if (dx !== 1) { dx = -1; dy = 0; }
-                break;
-            case 'ArrowRight':
-                if (dx !== -1) { dx = 1; dy = 0; }
-                break;
+            case 'ArrowUp': if (dy !== 1) { dx = 0; dy = -1; } break;
+            case 'ArrowDown': if (dy !== -1) { dx = 0; dy = 1; } break;
+            case 'ArrowLeft': if (dx !== 1) { dx = -1; dy = 0; } break;
+            case 'ArrowRight': if (dx !== -1) { dx = 1; dy = 0; } break;
         }
     };
 
     window.addEventListener('keydown', handleKeydown);
-    
     drawGame();
 
     return () => {
@@ -1749,7 +1824,9 @@ function initSnakeGame(windowElement) {
 /** Solitaire Game Implementation */
 function initSolitaireGame(windowElement) {
     const board = windowElement.querySelector('#solitaire-board');
+    const newGameBtn = windowElement.querySelector('#solitaire-new-game');
     const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+    const suitSymbols = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
     const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
     const colors = { hearts: 'red', diamonds: 'red', clubs: 'black', spades: 'black' };
     
@@ -1758,12 +1835,15 @@ function initSolitaireGame(windowElement) {
     let waste = [];
     let foundations = { hearts: [], diamonds: [], clubs: [], spades: [] };
     let tableau = [[], [], [], [], [], [], []];
-    
+    let selected = null;
+
+    if (newGameBtn) newGameBtn.addEventListener('click', deal);
+
     function createDeck() {
         deck = [];
         suits.forEach(suit => {
             values.forEach((value, index) => {
-                deck.push({ suit, value, rank: index + 1, color: colors[suit], faceUp: false });
+                deck.push({ suit, value, rank: index + 1, color: colors[suit], faceUp: false, id: Math.random() });
             });
         });
     }
@@ -1778,7 +1858,9 @@ function initSolitaireGame(windowElement) {
     function deal() {
         createDeck();
         shuffle(deck);
-        
+        tableau = [[], [], [], [], [], [], []];
+        foundations = { hearts: [], diamonds: [], clubs: [], spades: [] };
+        waste = [];
         tableau.forEach((col, i) => {
             for (let j = 0; j <= i; j++) {
                 const card = deck.pop();
@@ -1786,134 +1868,35 @@ function initSolitaireGame(windowElement) {
                 col.push(card);
             }
         });
-        
         stock = deck;
         render();
     }
-    
-    function render() {
-        board.innerHTML = '';
-        
-        // Stock and Waste
-        const stockEl = createCardEl(stock.length > 0 ? { faceUp: false } : null, 'stock');
-        stockEl.style.left = '20px';
-        stockEl.style.top = '20px';
-        stockEl.addEventListener('click', drawFromStock);
-        board.appendChild(stockEl);
-        
-        const wasteEl = createCardEl(waste.length > 0 ? waste[waste.length - 1] : null, 'waste');
-        wasteEl.style.left = '100px';
-        wasteEl.style.top = '20px';
-        if (selected && selected.type === 'waste') {
-            wasteEl.style.boxShadow = '0 0 10px 2px #ffff00';
-            wasteEl.style.transform = 'scale(1.05)';
-            wasteEl.style.zIndex = '100';
-        }
-        wasteEl.addEventListener('click', handleWasteClick);
-        board.appendChild(wasteEl);
-        
-        // Foundations
-        suits.forEach((suit, i) => {
-            const foundation = foundations[suit];
-            const card = foundation.length > 0 ? foundation[foundation.length - 1] : { suit, value: '', empty: true };
-            const el = createCardEl(card, 'foundation');
-            el.style.left = `${250 + i * 80}px`;
-            el.style.top = '20px';
-            el.dataset.suit = suit;
-            el.addEventListener('click', () => moveToFoundation(suit));
-            board.appendChild(el);
-        });
-        
-        // Tableau
-        tableau.forEach((col, i) => {
-            const colEl = document.createElement('div');
-            colEl.className = 'solitaire-column';
-            colEl.style.position = 'absolute';
-            colEl.style.left = `${20 + i * 80}px`;
-            colEl.style.top = '120px';
-            colEl.style.width = '70px';
-            colEl.style.height = '400px';
-            
-            col.forEach((card, j) => {
-                const cardEl = createCardEl(card);
-                cardEl.style.position = 'absolute';
-                cardEl.style.top = `${j * 20}px`;
-                if (selected && selected.type === 'tableau' && selected.colIndex === i && selected.cardIndex === j) {
-                    cardEl.style.boxShadow = '0 0 10px 2px #ffff00';
-                    cardEl.style.transform = 'scale(1.05)';
-                    cardEl.style.zIndex = '100';
-                }
-                cardEl.addEventListener('click', () => handleTableauClick(i, j));
-                colEl.appendChild(cardEl);
-            });
-            
-            if (col.length === 0) {
-                const emptyEl = createCardEl(null);
-                emptyEl.addEventListener('click', () => handleTableauClick(i, -1));
-                colEl.appendChild(emptyEl);
-            }
-            
-            board.appendChild(colEl);
-        });
-    }
-    
-    function createCardEl(card, type = '') {
-        const el = document.createElement('div');
-        el.className = `solitaire-card ${type}`;
-        el.style.width = '70px';
-        el.style.height = '100px';
-        el.style.border = '1px solid #000';
-        el.style.borderRadius = '5px';
-        el.style.backgroundColor = '#fff';
-        el.style.display = 'flex';
-        el.style.flexDirection = 'column';
-        el.style.alignItems = 'center';
-        el.style.justifyContent = 'center';
-        el.style.fontSize = '1.2rem';
-        el.style.fontWeight = 'bold';
-        el.style.cursor = 'pointer';
-        el.style.userSelect = 'none';
-        
-        if (!card) {
-            el.style.backgroundColor = 'transparent';
-            el.style.border = '1px dashed #fff';
-            return el;
-        }
-        
-        if (card.empty) {
-            el.style.backgroundColor = 'rgba(255,255,255,0.2)';
-            el.style.border = '1px solid #fff';
-            el.innerHTML = `<span style="opacity: 0.3">${getSuitSymbol(card.suit)}</span>`;
-            return el;
-        }
-        
-        if (!card.faceUp && type !== 'stock') {
-            el.style.backgroundColor = '#000080';
-            el.style.backgroundImage = 'repeating-linear-gradient(45deg, #000080, #000080 5px, #0000a0 5px, #0000a0 10px)';
-            return el;
-        }
-        
-        if (type === 'stock') {
-             el.style.backgroundColor = '#000080';
-             el.style.backgroundImage = 'repeating-linear-gradient(45deg, #000080, #000080 5px, #0000a0 5px, #0000a0 10px)';
-             return el;
-        }
 
-        el.style.color = card.color;
-        el.innerHTML = `<div>${card.value}</div><div>${getSuitSymbol(card.suit)}</div>`;
+    function createCardEl(card, type) {
+        const el = document.createElement('div');
+        el.className = 'solitaire-card';
+        if (!card) {
+            el.classList.add('empty');
+            if (type === 'foundation') el.innerHTML = '<div style="opacity: 0.2; font-size: 2rem;">?</div>';
+            return el;
+        }
+        if (!card.faceUp && !card.empty) {
+            el.classList.add('back');
+            el.innerHTML = '<div class="card-back-pattern"></div>';
+        } else if (card.empty) {
+            el.classList.add('empty');
+            el.innerHTML = `<div style="opacity: 0.2; font-size: 2rem;">${suitSymbols[card.suit]}</div>`;
+        } else {
+            el.style.color = card.color;
+            el.innerHTML = `
+                <div class="card-value-top">${card.value}</div>
+                <div class="card-suit-center">${suitSymbols[card.suit]}</div>
+                <div class="card-value-bottom">${card.value}</div>
+            `;
+        }
         return el;
     }
-    
-    function getSuitSymbol(suit) {
-        switch(suit) {
-            case 'hearts': return '♥';
-            case 'diamonds': return '♦';
-            case 'clubs': return '♣';
-            case 'spades': return '♠';
-            default: return '';
-        }
-    }
-    
+
     function drawFromStock() {
         if (stock.length === 0) {
             stock = waste.reverse().map(c => ({ ...c, faceUp: false }));
@@ -1923,96 +1906,251 @@ function initSolitaireGame(windowElement) {
             card.faceUp = true;
             waste.push(card);
         }
+        selected = null;
         render();
     }
-    
-    let selected = null;
-    
+
     function handleWasteClick() {
         if (waste.length === 0) return;
-        if (selected && selected.type === 'waste') {
-            selected = null;
-        } else {
-            selected = { type: 'waste' };
-        }
+        if (selected && selected.type === 'waste') selected = null;
+        else selected = { type: 'waste', card: waste[waste.length - 1] };
         render();
     }
 
     function handleTableauClick(colIndex, cardIndex) {
         const col = tableau[colIndex];
-        const card = cardIndex === -1 ? null : col[cardIndex];
-        
-        if (card && !card.faceUp) return;
-        
-        if (selected) {
-            if (selected.type === 'tableau') {
-                const fromCol = tableau[selected.colIndex];
-                const cardsToMove = fromCol.splice(selected.cardIndex);
-                
-                if (canMoveToTableau(cardsToMove[0], card)) {
-                    col.push(...cardsToMove);
-                    if (fromCol.length > 0) fromCol[fromCol.length - 1].faceUp = true;
-                } else {
-                    fromCol.push(...cardsToMove);
-                }
-            } else if (selected.type === 'waste') {
-                const cardToMove = waste[waste.length - 1];
-                if (canMoveToTableau(cardToMove, card)) {
-                    col.push(waste.pop());
-                }
-            }
-            selected = null;
+        const card = col[cardIndex];
+        if (!selected) {
+            if (card && card.faceUp) selected = { type: 'tableau', colIndex, cardIndex, card };
         } else {
-            selected = { type: 'tableau', colIndex, cardIndex };
+            if (canMoveToTableau(selected, colIndex)) {
+                moveCards(selected, { type: 'tableau', colIndex });
+                selected = null;
+            } else {
+                if (card && card.faceUp) selected = { type: 'tableau', colIndex, cardIndex, card };
+                else selected = null;
+            }
         }
         render();
     }
-    
-    function canMoveToTableau(card, target) {
-        if (!target) return card.value === 'K';
-        return card.color !== target.color && card.rank === target.rank - 1;
-    }
-    
-    function moveToFoundation(suit) {
-        if (selected) {
-            let cardToMove = null;
-            if (selected.type === 'tableau') {
-                const fromCol = tableau[selected.colIndex];
-                if (selected.cardIndex === fromCol.length - 1) {
-                    cardToMove = fromCol[fromCol.length - 1];
-                }
-            } else if (selected.type === 'waste') {
-                cardToMove = waste[waste.length - 1];
-            }
-            
-            if (cardToMove && cardToMove.suit === suit) {
-                const foundation = foundations[suit];
-                const targetRank = foundation.length === 0 ? 0 : foundation[foundation.length - 1].rank;
-                
-                if (cardToMove.rank === targetRank + 1) {
-                    foundations[suit].push(cardToMove);
-                    if (selected.type === 'tableau') {
-                        const fromCol = tableau[selected.colIndex];
-                        fromCol.pop();
-                        if (fromCol.length > 0) fromCol[fromCol.length - 1].faceUp = true;
-                    } else {
-                        waste.pop();
-                    }
-                }
-            }
+
+    function handleFoundationClick(suit) {
+        if (!selected) return;
+        if (canMoveToFoundation(selected, suit)) {
+            moveCards(selected, { type: 'foundation', suit });
             selected = null;
-            render();
+        }
+        render();
+    }
+
+    function canMoveToTableau(src, destColIndex) {
+        const destCol = tableau[destColIndex];
+        const destCard = destCol[destCol.length - 1];
+        const srcCard = src.card;
+        if (!destCard) return srcCard.rank === 13;
+        return srcCard.color !== destCard.color && srcCard.rank === destCard.rank - 1;
+    }
+
+    function canMoveToFoundation(src, suit) {
+        const foundation = foundations[suit];
+        const srcCard = src.card;
+        if (src.type === 'tableau') {
+            const col = tableau[src.colIndex];
+            if (src.cardIndex !== col.length - 1) return false;
+        }
+        if (srcCard.suit !== suit) return false;
+        if (foundation.length === 0) return srcCard.rank === 1;
+        const topCard = foundation[foundation.length - 1];
+        return srcCard.rank === topCard.rank + 1;
+    }
+
+    function moveCards(src, dest) {
+        let cardsToMove = [];
+        if (src.type === 'waste') cardsToMove = [waste.pop()];
+        else if (src.type === 'tableau') {
+            const col = tableau[src.colIndex];
+            cardsToMove = col.splice(src.cardIndex);
+            if (col.length > 0) col[col.length - 1].faceUp = true;
+        }
+        if (dest.type === 'tableau') tableau[dest.colIndex].push(...cardsToMove);
+        else if (dest.type === 'foundation') foundations[dest.suit].push(...cardsToMove);
+        checkWin();
+    }
+
+    function checkWin() {
+        const totalCards = Object.values(foundations).reduce((acc, f) => acc + f.length, 0);
+        if (totalCards === 52) alert('Congratulations! You won!');
+    }
+
+    function render() {
+        board.innerHTML = '';
+        const stockEl = createCardEl(stock.length > 0 ? { faceUp: false } : null, 'stock');
+        stockEl.style.left = '20px'; stockEl.style.top = '20px';
+        stockEl.addEventListener('click', drawFromStock);
+        board.appendChild(stockEl);
+        const wasteEl = createCardEl(waste.length > 0 ? waste[waste.length - 1] : null, 'waste');
+        wasteEl.style.left = '100px'; wasteEl.style.top = '20px';
+        if (selected && selected.type === 'waste') wasteEl.classList.add('selected');
+        wasteEl.addEventListener('click', handleWasteClick);
+        board.appendChild(wasteEl);
+        suits.forEach((suit, i) => {
+            const foundation = foundations[suit];
+            const card = foundation.length > 0 ? foundation[foundation.length - 1] : { suit, empty: true };
+            const el = createCardEl(card, 'foundation');
+            el.style.left = `${250 + i * 80}px`; el.style.top = '20px';
+            el.addEventListener('click', () => handleFoundationClick(suit));
+            board.appendChild(el);
+        });
+        tableau.forEach((col, i) => {
+            if (col.length === 0) {
+                const emptyEl = createCardEl(null, 'tableau');
+                emptyEl.style.left = `${20 + i * 80}px`; emptyEl.style.top = '120px';
+                emptyEl.addEventListener('click', () => handleTableauClick(i, 0));
+                board.appendChild(emptyEl);
+            }
+            col.forEach((card, j) => {
+                const cardEl = createCardEl(card);
+                cardEl.style.left = `${20 + i * 80}px`; cardEl.style.top = `${120 + j * 20}px`;
+                cardEl.style.zIndex = j;
+                if (selected && selected.type === 'tableau' && selected.colIndex === i && j >= selected.cardIndex) cardEl.classList.add('selected');
+                cardEl.addEventListener('click', (e) => { e.stopPropagation(); handleTableauClick(i, j); });
+                board.appendChild(cardEl);
+            });
+        });
+    }
+    deal();
+    return () => {};
+}
+
+/** Pinball Game Implementation */
+function initPinball(windowElement) {
+    const canvas = windowElement.querySelector('#pinball-canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = windowElement.querySelector('#pinball-score');
+    const gameOverEl = windowElement.querySelector('#pinball-game-over');
+    const finalScoreEl = windowElement.querySelector('#pinball-final-score');
+    
+    let score = 0;
+    let ballsLeft = 3;
+    let ball = { x: 380, y: 580, vx: 0, vy: 0, radius: 8 };
+    let leftFlipper = { x: 120, y: 550, length: 80, angle: 0.5, targetAngle: 0.5, active: false };
+    let rightFlipper = { x: 280, y: 550, length: 80, angle: -0.5, targetAngle: -0.5, active: false };
+    let bumpers = [
+        { x: 100, y: 150, radius: 25, color: '#ff00ff' },
+        { x: 300, y: 150, radius: 25, color: '#00ffff' },
+        { x: 200, y: 250, radius: 30, color: '#ffff00' },
+        { x: 150, y: 80, radius: 20, color: '#ff3333' },
+        { x: 250, y: 80, radius: 20, color: '#33ff33' }
+    ];
+    let walls = [
+        { x1: 0, y1: 0, x2: 400, y2: 0 },
+        { x1: 0, y1: 0, x2: 0, y2: 600 },
+        { x1: 400, y1: 0, x2: 400, y2: 600 },
+        { x1: 360, y1: 600, x2: 360, y2: 100 }
+    ];
+    
+    let gameLoop = null;
+    let isLaunching = false;
+    let isGameOver = false;
+
+    function draw() {
+        if (isGameOver) return;
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#444'; ctx.lineWidth = 4;
+        walls.forEach(w => { ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); ctx.stroke(); });
+        bumpers.forEach(b => { ctx.shadowBlur = 10; ctx.shadowColor = b.color; ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill(); });
+        ctx.shadowBlur = 0;
+        drawFlipper(leftFlipper, true);
+        drawFlipper(rightFlipper, false);
+        ctx.fillStyle = '#ddd'; ctx.shadowBlur = 5; ctx.shadowColor = '#fff'; ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+        
+        // Draw balls left
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px monospace';
+        ctx.fillText(`Balls: ${ballsLeft}`, 10, 20);
+
+        update();
+        gameLoop = requestAnimationFrame(draw);
+    }
+
+    function drawFlipper(f, isLeft) {
+        ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.angle);
+        ctx.fillStyle = '#ff3333'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+        const w = isLeft ? f.length : -f.length;
+        ctx.beginPath(); ctx.roundRect(0, -10, w, 20, 10); ctx.fill(); ctx.stroke();
+        ctx.restore();
+    }
+
+    function update() {
+        if (!isLaunching) ball.vy += 0.2;
+        ball.x += ball.vx; ball.y += ball.vy;
+        leftFlipper.angle += (leftFlipper.targetAngle - leftFlipper.angle) * 0.3;
+        rightFlipper.angle += (rightFlipper.targetAngle - rightFlipper.angle) * 0.3;
+        if (ball.x < ball.radius) { ball.x = ball.radius; ball.vx *= -0.7; }
+        if (ball.x > canvas.width - ball.radius) { ball.x = canvas.width - ball.radius; ball.vx *= -0.7; }
+        if (ball.y < ball.radius) { ball.y = ball.radius; ball.vy *= -0.7; }
+        if (ball.x > 360 - ball.radius && ball.y > 100) { if (ball.vx > 0) { ball.x = 360 - ball.radius; ball.vx *= -0.7; } }
+        bumpers.forEach(b => {
+            const dx = ball.x - b.x; const dy = ball.y - b.y; const dist = Math.sqrt(dx*dx + dy*dx);
+            if (dist < b.radius + ball.radius) {
+                const angle = Math.atan2(dy, dx); ball.vx = Math.cos(angle) * 8; ball.vy = Math.sin(angle) * 8;
+                score += 100; scoreEl.textContent = `Score: ${score}`;
+            }
+        });
+        checkFlipperCollision(leftFlipper, true);
+        checkFlipperCollision(rightFlipper, false);
+        if (ball.y > canvas.height) {
+            ballsLeft--;
+            if (ballsLeft < 0) {
+                isGameOver = true;
+                gameOverEl.style.display = 'flex';
+                finalScoreEl.textContent = `Score: ${score}`;
+            } else {
+                ball = { x: 380, y: 580, vx: 0, vy: 0, radius: 8 };
+                isLaunching = false;
+            }
         }
     }
-    
-    const newGameBtn = windowElement.querySelector('#solitaire-new-game');
-    if (newGameBtn) newGameBtn.addEventListener('click', deal);
-    
-    deal();
-    
-    return () => {
-        // Cleanup if needed
+
+    function checkFlipperCollision(f, isLeft) {
+        const dx = ball.x - f.x; const dy = ball.y - f.y; const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < f.length + ball.radius && Math.abs(dy) < 30) {
+            const relX = dx * Math.cos(-f.angle) - dy * Math.sin(-f.angle);
+            const relY = dx * Math.sin(-f.angle) + dy * Math.cos(-f.angle);
+            const hit = isLeft ? (relX > 0 && relX < f.length) : (relX < 0 && relX > -f.length);
+            if (hit && Math.abs(relY) < 15) {
+                ball.vy = -10 * (f.active ? 1.5 : 1); ball.vx = (isLeft ? 1 : -1) * 5;
+                score += 10; scoreEl.textContent = `Score: ${score}`;
+            }
+        }
+    }
+
+    function resetGame() {
+        score = 0; ballsLeft = 3; isGameOver = false; isLaunching = false;
+        ball = { x: 380, y: 580, vx: 0, vy: 0, radius: 8 };
+        scoreEl.textContent = `Score: ${score}`;
+        gameOverEl.style.display = 'none';
+        cancelAnimationFrame(gameLoop);
+        draw();
+    }
+
+    const handleKeydown = (e) => {
+        if (isGameOver && e.code === 'Space') { resetGame(); return; }
+        if (e.key === 'ArrowLeft') { leftFlipper.targetAngle = -0.5; leftFlipper.active = true; }
+        if (e.key === 'ArrowRight') { rightFlipper.targetAngle = 0.5; rightFlipper.active = true; }
+        if (e.code === 'Space' && ball.x > 360) { ball.vy = -15; isLaunching = true; }
     };
+
+    const handleKeyup = (e) => {
+        if (e.key === 'ArrowLeft') { leftFlipper.targetAngle = 0.5; leftFlipper.active = false; }
+        if (e.key === 'ArrowRight') { rightFlipper.targetAngle = -0.5; rightFlipper.active = false; }
+    };
+
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('keyup', handleKeyup);
+    gameLoop = requestAnimationFrame(draw);
+    return () => { cancelAnimationFrame(gameLoop); window.removeEventListener('keydown', handleKeydown); window.removeEventListener('keyup', handleKeyup); };
 }
 
 
