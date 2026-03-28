@@ -735,10 +735,41 @@ function initChromeBrowser(windowElement) {
                     const urlObj = new URL(iframe.src);
                     tabEl.querySelector('.tab-title').textContent = urlObj.hostname;
                 }
+
+                // Simulate Extension Content Scripts
+                installedExtensions.forEach(ext => {
+                    if (ext.enabled && ext.manifest.content_scripts) {
+                        ext.manifest.content_scripts.forEach(cs => {
+                            // Check matches (simplified)
+                            const matches = cs.matches.some(m => {
+                                if (m === '<all_urls>') return true;
+                                const regex = new RegExp(m.replace(/\*/g, '.*'));
+                                return regex.test(iframe.src);
+                            });
+
+                            if (matches && cs.js) {
+                                cs.js.forEach(jsFile => {
+                                    const scriptContent = ext.scripts[jsFile];
+                                    if (scriptContent) {
+                                        try {
+                                            const script = iframe.contentDocument.createElement('script');
+                                            script.textContent = scriptContent;
+                                            iframe.contentDocument.head.appendChild(script);
+                                            console.log(`Injected ${jsFile} from ${ext.name}`);
+                                        } catch (e) {
+                                            console.warn(`Could not inject ${jsFile} into ${iframe.src}: Cross-origin restriction.`);
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
             } catch (e) {
                 // Fallback for cross-origin
                 const urlObj = new URL(iframe.src);
                 tabEl.querySelector('.tab-title').textContent = urlObj.hostname;
+                console.warn(`Cross-origin restriction for ${iframe.src}. Extensions cannot inject scripts.`);
             }
         };
         framesContainer.appendChild(iframe);
@@ -1148,10 +1179,15 @@ function initClock(windowElement) {
 // Initialize taskbar clock immediately
 initClock(document.createElement('div'));
 
-let installedExtensions = [];
+let installedExtensions = JSON.parse(localStorage.getItem('sproot95_extensions')) || [];
+
+function saveExtensions() {
+    localStorage.setItem('sproot95_extensions', JSON.stringify(installedExtensions));
+}
 
 function initExtensionManager(windowElement) {
-    const uploadBtn = windowElement.querySelector('#upload-extension');
+    const uploadFolderBtn = windowElement.querySelector('#upload-extension-folder');
+    const uploadJsonBtn = windowElement.querySelector('#upload-extension-json');
     const listContainer = windowElement.querySelector('#extension-list');
 
     function renderExtensions() {
@@ -1170,25 +1206,45 @@ function initExtensionManager(windowElement) {
             item.style.display = 'flex';
             item.style.flexDirection = 'column';
             item.style.gap = '5px';
+            item.style.backgroundColor = ext.enabled ? '#fff' : '#f9f9f9';
+            item.style.opacity = ext.enabled ? '1' : '0.6';
 
             const header = document.createElement('div');
             header.style.display = 'flex';
             header.style.justifyContent = 'space-between';
             header.style.alignItems = 'center';
 
+            const nameContainer = document.createElement('div');
+            nameContainer.style.display = 'flex';
+            nameContainer.style.alignItems = 'center';
+            nameContainer.style.gap = '10px';
+
+            const toggle = document.createElement('input');
+            toggle.type = 'checkbox';
+            toggle.checked = ext.enabled;
+            toggle.onchange = () => {
+                ext.enabled = toggle.checked;
+                saveExtensions();
+                renderExtensions();
+            };
+
             const name = document.createElement('span');
             name.style.fontWeight = 'bold';
             name.textContent = `${ext.name} v${ext.version}`;
+
+            nameContainer.appendChild(toggle);
+            nameContainer.appendChild(name);
 
             const removeBtn = document.createElement('button');
             removeBtn.textContent = 'Remove';
             removeBtn.style.fontSize = '0.6rem';
             removeBtn.onclick = () => {
                 installedExtensions.splice(index, 1);
+                saveExtensions();
                 renderExtensions();
             };
 
-            header.appendChild(name);
+            header.appendChild(nameContainer);
             header.appendChild(removeBtn);
 
             const desc = document.createElement('span');
@@ -1202,33 +1258,68 @@ function initExtensionManager(windowElement) {
         });
     }
 
-    uploadBtn.onclick = () => {
+    async function processFiles(files) {
+        let manifestFile = null;
+        let scripts = {};
+
+        for (const file of files) {
+            if (file.name === 'manifest.json') {
+                manifestFile = file;
+            } else if (file.name.endsWith('.js')) {
+                const content = await file.text();
+                scripts[file.name] = content;
+            }
+        }
+
+        if (!manifestFile) {
+            alert("Missing manifest.json in the folder.");
+            return;
+        }
+
+        try {
+            const manifestText = await manifestFile.text();
+            const manifest = JSON.parse(manifestText);
+            if (!manifest.name || !manifest.version) {
+                alert("Invalid manifest.json: Missing name or version.");
+                return;
+            }
+
+            installedExtensions.push({
+                id: Date.now() + Math.random().toString(36).substr(2, 9),
+                name: manifest.name,
+                version: manifest.version,
+                description: manifest.description,
+                enabled: true,
+                manifest: manifest,
+                scripts: scripts
+            });
+            saveExtensions();
+            renderExtensions();
+        } catch (err) {
+            alert("Error parsing manifest.json: " + err.message);
+        }
+    }
+
+    uploadFolderBtn.onclick = () => {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.json'; // User should select manifest.json
+        input.webkitdirectory = true;
+        input.onchange = (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            processFiles(files);
+        };
+        input.click();
+    };
+
+    uploadJsonBtn.onclick = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
         input.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const manifest = JSON.parse(event.target.result);
-                    if (!manifest.name || !manifest.version) {
-                        alert("Invalid manifest.json: Missing name or version.");
-                        return;
-                    }
-                    installedExtensions.push({
-                        name: manifest.name,
-                        version: manifest.version,
-                        description: manifest.description,
-                        manifest: manifest
-                    });
-                    renderExtensions();
-                } catch (err) {
-                    alert("Error parsing manifest.json: " + err.message);
-                }
-            };
-            reader.readAsText(file);
+            processFiles([file]);
         };
         input.click();
     };
