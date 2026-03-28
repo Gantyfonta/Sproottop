@@ -746,8 +746,16 @@
         <span>SprootCasino</span>
       </div>
       <div class="icon" data-app="pinball">
-        <img src="https://repository-images.githubusercontent.com/65593704/19f2cb80-60c8-11eb-923b-7b6093fe6828" alt="Pinball" />
-        <span>SprootPinball</span>
+        <img src="https://win98icons.alexmeub.com/icons/png/pinball-0.png" alt="Pinball" referrerPolicy="no-referrer">
+        <span>Space Cadet Pinball</span>
+      </div>
+      <div class="icon" data-app="snake">
+        <img src="https://win98icons.alexmeub.com/icons/png/joystick-0.png" alt="Snake" />
+        <span>SprootSnake</span>
+      </div>
+      <div class="icon" data-app="solitaire">
+        <img src="https://win98icons.alexmeub.com/icons/png/cards-0.png" alt="Solitaire" />
+        <span>Solitaire</span>
       </div>
       <div class="icon" data-app="sprootCode">
         <img src="https://win98icons.alexmeub.com/icons/png/console_prompt-0.png" alt="SprootCode" />
@@ -1002,8 +1010,10 @@
             <option value="doom">DOOM</option>
             <option value="minesweeper">Minesweeper</option>
             <option value="casino">SprootCasino</option>
-            <option value="pinball">Pinball</option>
+            <option value="pinball">Space Cadet Pinball</option>
             <option value="sprootCode">SprootCode</option>
+            <option value="snake">SprootSnake</option>
+            <option value="solitaire">Solitaire</option>
             <option value="mediaPlayer">SprootPlayer</option>
             <option value="calculator">Calculator</option>
             <option value="settings">Settings</option>
@@ -1095,21 +1105,16 @@
         </div>
       </div>
 
-      <div class="window resizable" id="pinball" style="width: 400px; height: 600px;">
+      <div class="window resizable" id="pinball" style="width: 600px; height: 500px;">
         <div class="window-titlebar">
-          <span class="window-title">SprootPinball</span>
+          <span class="window-title">Space Cadet Pinball</span>
           <div class="window-controls">
             <div class="window-minimize window-control-button">−</div>
             <div class="window-close window-control-button">✕</div>
           </div>
         </div>
-        <div class="window-content" style="background-color: black; padding: 0; display: flex; flex-direction: column; align-items: center;">
-          <canvas id="pinball-canvas" width="380" height="500" style="border: 2px solid #555; background: #111; margin-top: 10px;"></canvas>
-          <div style="color: white; font-family: 'Courier New', Courier, monospace; margin-top: 10px;">
-            Score: <span id="pinball-score">0</span> | High Score: <span id="pinball-highscore">0</span>
-          </div>
-          <div style="color: #888; font-size: 0.7rem; margin-top: 5px;">Use Left/Right Arrows to control flippers</div>
-          <button id="pinball-start" style="margin-top: 10px; padding: 5px 20px; background: #c0c0c0; border: 2px outset white; cursor: pointer;">Start Game</button>
+        <div class="window-content" style="background-color: black; padding: 0; overflow: hidden;">
+          <iframe src="https://98.js.org/programs/pinball/space-cadet.html" style="width: 100%; height: 100%; border: none;"></iframe>
         </div>
       </div>
 
@@ -1156,6 +1161,37 @@
         </div>
       </div>
 
+      <div class="window resizable" id="snake" style="width: 400px; height: 450px">
+        <div class="window-titlebar">
+          <span class="window-title">SprootSnake</span>
+          <div class="window-controls">
+            <div class="window-minimize window-control-button">−</div>
+            <div class="window-close window-control-button">✕</div>
+          </div>
+        </div>
+        <div class="window-content" style="background-color: #000; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div id="snake-score" style="color: white; font-family: monospace; margin-bottom: 10px;">Score: 0</div>
+          <canvas id="snake-canvas" width="300" height="300" style="border: 2px solid #fff;"></canvas>
+          <div id="snake-game-over" style="display: none; color: red; font-weight: bold; margin-top: 10px;">GAME OVER! Press Space to Restart</div>
+        </div>
+      </div>
+
+      <div class="window resizable" id="solitaire" style="width: 600px; height: 500px">
+        <div class="window-titlebar">
+          <span class="window-title">Solitaire</span>
+          <div class="window-controls">
+            <div class="window-minimize window-control-button">−</div>
+            <div class="window-close window-control-button">✕</div>
+          </div>
+        </div>
+        <div class="window-content" style="background-color: #008000; position: relative; overflow: hidden; display: flex; flex-direction: column;">
+          <div style="padding: 5px; background-color: #c0c0c0; border-bottom: 1px solid #808080;">
+            <button id="solitaire-new-game" style="padding: 2px 10px; cursor: pointer;">New Game</button>
+          </div>
+          <div id="solitaire-board" style="flex: 1; position: relative;"></div>
+        </div>
+      </div>
+
       <!-- Start Menu -->
       <div class="start-menu" id="start-menu">
         <div class="start-menu-item" data-app="myComputer">My SprootTop</div>
@@ -1172,8 +1208,10 @@
         <div class="start-menu-item" data-app="chat">SprootChat</div>
         <div class="start-menu-item" data-app="taskManager">SprootTask</div>
         <div class="start-menu-item" data-app="casino">SprootCasino</div>
-        <div class="start-menu-item" data-app="pinball">SprootPinball</div>
+        <div class="start-menu-item" data-app="pinball">Space Cadet Pinball</div>
         <div class="start-menu-item" data-app="sprootCode">SprootCode</div>
+        <div class="start-menu-item" data-app="snake">SprootSnake</div>
+        <div class="start-menu-item" data-app="solitaire">Solitaire</div>
       </div>
 
       <!-- Taskbar -->

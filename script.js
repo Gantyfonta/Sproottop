@@ -123,7 +123,7 @@ async function openApp(appName) {
             case 'taskManager': iconSrc = 'https://win98icons.alexmeub.com/icons/png/task_manager-0.png'; title = 'SprootTask'; break;
             case 'extensionManager': iconSrc = 'https://win98icons.alexmeub.com/icons/png/settings_gear-0.png'; title = 'Extension Manager'; break;
             case 'casino': iconSrc = 'https://win98icons.alexmeub.com/icons/png/cards-0.png'; title = 'SprootCasino'; break;
-            case 'pinball': iconSrc = 'https://win98icons.alexmeub.com/icons/png/pinball-0.png'; title = 'SprootPinball'; break;
+            case 'pinball': iconSrc = 'https://win98icons.alexmeub.com/icons/png/pinball-0.png'; title = 'Space Cadet Pinball'; break;
             case 'sprootCode': iconSrc = 'https://win98icons.alexmeub.com/icons/png/script_file-0.png'; title = 'SprootCode'; break;
          }
     }
@@ -195,13 +195,19 @@ async function openApp(appName) {
         initCasino(windowElement);
     }
     else if (appName === 'pinball') {
-        cleanup = initPinball(windowElement);
+        // Pinball is now an iframe, no initialization needed
     }
     else if (appName === 'extensionManager') {
         initExtensionManager(windowElement);
     }
     else if (appName === 'sprootCode') {
         initSprootCode(windowElement);
+    }
+    else if (appName === 'snake') {
+        cleanup = initSnakeGame(windowElement);
+    }
+    else if (appName === 'solitaire') {
+        cleanup = initSolitaireGame(windowElement);
     }
 
     if (cleanup) {
@@ -1559,271 +1565,7 @@ function initCasino(windowElement) {
     };
 }
 
-function initPinball(windowElement) {
-    const canvas = windowElement.querySelector('#pinball-canvas');
-    const ctx = canvas.getContext('2d');
-    const scoreEl = windowElement.querySelector('#pinball-score');
-    const highscoreEl = windowElement.querySelector('#pinball-highscore');
-    const startBtn = windowElement.querySelector('#pinball-start');
 
-    let score = 0;
-    let highscore = localStorage.getItem('sproot95_pinball_highscore') || 0;
-    highscoreEl.textContent = highscore;
-
-    let gameRunning = false;
-    let gameOver = false;
-    let ball = { x: 360, y: 480, dx: 0, dy: 0, radius: 8, gravity: 0.15, friction: 0.995 };
-    
-    const flipperWidth = 80;
-    const flipperHeight = 14;
-    const leftFlipper = { x: 90, y: 450, angle: 0.5, targetAngle: 0.5, pivotX: 90, pivotY: 450 };
-    const rightFlipper = { x: 260, y: 450, angle: -0.5, targetAngle: -0.5, pivotX: 260, pivotY: 450 };
-
-    const bumpers = [
-        { x: 100, y: 100, r: 25, color: '#ff0055', score: 100, active: 0 },
-        { x: 250, y: 100, r: 25, color: '#00ff55', score: 100, active: 0 },
-        { x: 175, y: 180, r: 30, color: '#00aaff', score: 200, active: 0 },
-        { x: 50, y: 250, r: 15, color: '#ffff00', score: 50, active: 0 },
-        { x: 300, y: 250, r: 15, color: '#ffff00', score: 50, active: 0 }
-    ];
-
-    const walls = [
-        { x1: 0, y1: 0, x2: 380, y2: 0 }, // Top
-        { x1: 0, y1: 0, x2: 0, y2: 500 }, // Left
-        { x1: 380, y1: 0, x2: 380, y2: 500 }, // Right
-        { x1: 340, y1: 100, x2: 340, y2: 500 }, // Launcher lane wall
-        { x1: 0, y1: 400, x2: 80, y2: 460 }, // Left drain slope
-        { x1: 340, y1: 400, x2: 270, y2: 460 } // Right drain slope
-    ];
-
-    let lastTime = 0;
-
-    function drawFlipper(f, isLeft) {
-        ctx.save();
-        ctx.translate(f.pivotX, f.pivotY);
-        ctx.rotate(f.angle);
-        
-        // Flipper body
-        ctx.beginPath();
-        const x = isLeft ? 0 : -flipperWidth;
-        ctx.roundRect(x, -flipperHeight/2, flipperWidth, flipperHeight, 7);
-        ctx.fillStyle = "#c0c0c0";
-        ctx.fill();
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // Pivot point
-        ctx.beginPath();
-        ctx.arc(0, 0, 4, 0, Math.PI * 2);
-        ctx.fillStyle = "black";
-        ctx.fill();
-        
-        ctx.restore();
-    }
-
-    function update(dt) {
-        if (!gameRunning) return;
-
-        // Gravity and friction adjusted for dt (dt is in ms, assuming 60fps target)
-        const dtScale = dt / 16.67;
-        
-        ball.dy += ball.gravity * dtScale;
-        ball.dx *= Math.pow(ball.friction, dtScale);
-        ball.dy *= Math.pow(ball.friction, dtScale);
-
-        ball.x += ball.dx * dtScale;
-        ball.y += ball.dy * dtScale;
-
-        // Wall collisions (simple circle-line)
-        walls.forEach(w => {
-            const dx = w.x2 - w.x1;
-            const dy = w.y2 - w.y1;
-            const lenSq = dx*dx + dy*dy;
-            const t = Math.max(0, Math.min(1, ((ball.x - w.x1) * dx + (ball.y - w.y1) * dy) / lenSq));
-            const projX = w.x1 + t * dx;
-            const projY = w.y1 + t * dy;
-            const dist = Math.sqrt((ball.x - projX)**2 + (ball.y - projY)**2);
-
-            if (dist < ball.radius) {
-                const normalX = (ball.x - projX) / dist;
-                const normalY = (ball.y - projY) / dist;
-                
-                // Reflect velocity
-                const dot = ball.dx * normalX + ball.dy * normalY;
-                ball.dx = (ball.dx - 2 * dot * normalX) * 0.8;
-                ball.dy = (ball.dy - 2 * dot * normalY) * 0.8;
-                
-                // Reposition ball
-                ball.x = projX + normalX * ball.radius;
-                ball.y = projY + normalY * ball.radius;
-            }
-        });
-
-        // Flipper logic
-        leftFlipper.angle += (leftFlipper.targetAngle - leftFlipper.angle) * 0.4 * dtScale;
-        rightFlipper.angle += (rightFlipper.targetAngle - rightFlipper.angle) * 0.4 * dtScale;
-
-        // Flipper collision
-        function checkFlipperCollision(f, isLeft) {
-            const dx = ball.x - f.pivotX;
-            const dy = ball.y - f.pivotY;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            
-            if (dist < flipperWidth + ball.radius) {
-                const relX = dx * Math.cos(-f.angle) - dy * Math.sin(-f.angle);
-                const relY = dx * Math.sin(-f.angle) + dy * Math.cos(-f.angle);
-                
-                const minX = isLeft ? 0 : -flipperWidth;
-                const maxX = isLeft ? flipperWidth : 0;
-                
-                if (relX > minX - ball.radius && relX < maxX + ball.radius && 
-                    relY > -flipperHeight/2 - ball.radius && relY < flipperHeight/2 + ball.radius) {
-                    
-                    const speed = Math.sqrt(ball.dx*ball.dx + ball.dy*ball.dy);
-                    const bounceAngle = f.angle - Math.PI/2;
-                    const boost = Math.abs(f.targetAngle - f.angle) > 0.05 ? 6 : 1;
-                    
-                    ball.dx = Math.cos(bounceAngle) * (speed + boost);
-                    ball.dy = Math.sin(bounceAngle) * (speed + boost);
-                    ball.y -= 5 * dtScale; // Prevent sticking
-                    
-                    score += 10;
-                    scoreEl.textContent = score;
-                }
-            }
-        }
-
-        checkFlipperCollision(leftFlipper, true);
-        checkFlipperCollision(rightFlipper, false);
-
-        // Bumper collisions
-        bumpers.forEach(b => {
-            const dx = ball.x - b.x;
-            const dy = ball.y - b.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist < ball.radius + b.r) {
-                const angle = Math.atan2(dy, dx);
-                const speed = Math.sqrt(ball.dx*ball.dx + ball.dy*ball.dy) + 3;
-                ball.dx = Math.cos(angle) * speed;
-                ball.dy = Math.sin(angle) * speed;
-                
-                score += b.score;
-                scoreEl.textContent = score;
-                b.active = 10;
-            }
-        });
-
-        // Out of bounds (Drain)
-        if (ball.y > canvas.height + ball.radius) {
-            gameRunning = false;
-            gameOver = true;
-            if (score > highscore) {
-                highscore = score;
-                highscoreEl.textContent = highscore;
-                localStorage.setItem('sproot95_pinball_highscore', highscore);
-            }
-        }
-    }
-
-    function draw(timestamp) {
-        if (!lastTime) lastTime = timestamp;
-        const dt = timestamp - lastTime;
-        lastTime = timestamp;
-
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw walls
-        ctx.strokeStyle = "#444";
-        ctx.lineWidth = 4;
-        walls.forEach(w => {
-            ctx.beginPath();
-            ctx.moveTo(w.x1, w.y1);
-            ctx.lineTo(w.x2, w.y2);
-            ctx.stroke();
-        });
-
-        // Draw bumpers
-        bumpers.forEach(b => {
-            ctx.beginPath();
-            ctx.arc(b.x, b.y, b.r + (b.active > 0 ? 2 : 0), 0, Math.PI * 2);
-            ctx.fillStyle = b.color;
-            ctx.fill();
-            ctx.strokeStyle = "white";
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            if (b.active > 0) b.active--;
-        });
-
-        // Draw flippers
-        drawFlipper(leftFlipper, true);
-        drawFlipper(rightFlipper, false);
-
-        // Draw ball
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "#ddd";
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "white";
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        if (gameOver) {
-            ctx.fillStyle = "rgba(0,0,0,0.8)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "white";
-            ctx.font = "bold 32px 'Courier New'";
-            ctx.textAlign = "center";
-            ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2 - 20);
-            ctx.font = "20px 'Courier New'";
-            ctx.fillText("Score: " + score, canvas.width/2, canvas.height/2 + 30);
-            ctx.font = "14px 'Courier New'";
-            ctx.fillText("Press Start to play again", canvas.width/2, canvas.height/2 + 60);
-        }
-
-        update(dt);
-        if (gameRunning || gameOver) {
-            requestAnimationFrame(draw);
-        }
-    }
-
-    startBtn.onclick = () => {
-        // Launch ball from plunger lane with more force
-        ball = { x: 360, y: 480, dx: 0, dy: -18, radius: 8, gravity: 0.15, friction: 0.995 };
-        score = 0;
-        scoreEl.textContent = score;
-        gameRunning = true;
-        gameOver = false;
-        lastTime = 0;
-        requestAnimationFrame(draw);
-    };
-
-    const handleKeyDown = (e) => {
-        if (windowElement !== activeWindow) return;
-        if (e.key === 'ArrowLeft') leftFlipper.targetAngle = -0.6;
-        if (e.key === 'ArrowRight') rightFlipper.targetAngle = 0.6;
-    };
-
-    const handleKeyUp = (e) => {
-        if (windowElement !== activeWindow) return;
-        if (e.key === 'ArrowLeft') leftFlipper.targetAngle = 0.5;
-        if (e.key === 'ArrowRight') rightFlipper.targetAngle = -0.5;
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    
-    // Initial draw
-    draw();
-
-    // Return cleanup function
-    return () => {
-        window.removeEventListener('keydown', handleKeyDown);
-        window.removeEventListener('keyup', handleKeyUp);
-        gameRunning = false;
-    };
-}
 
 function initSprootCode(windowElement) {
     const editor = windowElement.querySelector('#code-editor');
@@ -1856,6 +1598,421 @@ function initSprootCode(windowElement) {
 </body>
 </html>`;
     updatePreview();
+}
+
+/** Snake Game Implementation */
+function initSnakeGame(windowElement) {
+    const canvas = windowElement.querySelector('#snake-canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = windowElement.querySelector('#snake-score');
+    const gameOverEl = windowElement.querySelector('#snake-game-over');
+    
+    const gridSize = 15;
+    const tileCount = canvas.width / gridSize;
+    
+    let score = 0;
+    let dx = 0;
+    let dy = 0;
+    let snake = [
+        {x: 10, y: 10},
+        {x: 10, y: 11},
+        {x: 10, y: 12}
+    ];
+    let food = {x: 5, y: 5};
+    let gameLoop = null;
+    let isPaused = false;
+
+    function drawGame() {
+        if (isPaused) return;
+        
+        moveSnake();
+        
+        if (checkGameOver()) {
+            gameOver();
+            return;
+        }
+        
+        clearCanvas();
+        drawFood();
+        drawSnake();
+        
+        gameLoop = setTimeout(drawGame, 100);
+    }
+
+    function clearCanvas() {
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawSnake() {
+        ctx.fillStyle = 'lime';
+        snake.forEach(part => {
+            ctx.fillRect(part.x * gridSize, part.y * gridSize, gridSize - 2, gridSize - 2);
+        });
+    }
+
+    function moveSnake() {
+        if (dx === 0 && dy === 0) return;
+        
+        const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+        snake.unshift(head);
+        
+        if (head.x === food.x && head.y === food.y) {
+            score += 10;
+            scoreEl.textContent = `Score: ${score}`;
+            createFood();
+        } else {
+            snake.pop();
+        }
+    }
+
+    function createFood() {
+        food.x = Math.floor(Math.random() * tileCount);
+        food.y = Math.floor(Math.random() * tileCount);
+        
+        // Ensure food doesn't spawn on snake
+        snake.forEach(part => {
+            if (part.x === food.x && part.y === food.y) createFood();
+        });
+    }
+
+    function drawFood() {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
+    }
+
+    function checkGameOver() {
+        const head = snake[0];
+        
+        if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) return true;
+        
+        for (let i = 1; i < snake.length; i++) {
+            if (snake[i].x === head.x && snake[i].y === head.y) return true;
+        }
+        
+        return false;
+    }
+
+    function gameOver() {
+        gameOverEl.style.display = 'block';
+        clearTimeout(gameLoop);
+    }
+
+    function resetGame() {
+        score = 0;
+        scoreEl.textContent = `Score: ${score}`;
+        dx = 0;
+        dy = 0;
+        snake = [
+            {x: 10, y: 10},
+            {x: 10, y: 11},
+            {x: 10, y: 12}
+        ];
+        gameOverEl.style.display = 'none';
+        createFood();
+        clearTimeout(gameLoop);
+        drawGame();
+    }
+
+    const handleKeydown = (e) => {
+        if (e.code === 'Space' && gameOverEl.style.display === 'block') {
+            resetGame();
+            return;
+        }
+        
+        switch(e.key) {
+            case 'ArrowUp':
+                if (dy !== 1) { dx = 0; dy = -1; }
+                break;
+            case 'ArrowDown':
+                if (dy !== -1) { dx = 0; dy = 1; }
+                break;
+            case 'ArrowLeft':
+                if (dx !== 1) { dx = -1; dy = 0; }
+                break;
+            case 'ArrowRight':
+                if (dx !== -1) { dx = 1; dy = 0; }
+                break;
+        }
+    };
+
+    window.addEventListener('keydown', handleKeydown);
+    
+    drawGame();
+
+    return () => {
+        clearTimeout(gameLoop);
+        window.removeEventListener('keydown', handleKeydown);
+    };
+}
+
+/** Solitaire Game Implementation */
+function initSolitaireGame(windowElement) {
+    const board = windowElement.querySelector('#solitaire-board');
+    const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+    const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const colors = { hearts: 'red', diamonds: 'red', clubs: 'black', spades: 'black' };
+    
+    let deck = [];
+    let stock = [];
+    let waste = [];
+    let foundations = { hearts: [], diamonds: [], clubs: [], spades: [] };
+    let tableau = [[], [], [], [], [], [], []];
+    
+    function createDeck() {
+        deck = [];
+        suits.forEach(suit => {
+            values.forEach((value, index) => {
+                deck.push({ suit, value, rank: index + 1, color: colors[suit], faceUp: false });
+            });
+        });
+    }
+    
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+    
+    function deal() {
+        createDeck();
+        shuffle(deck);
+        
+        tableau.forEach((col, i) => {
+            for (let j = 0; j <= i; j++) {
+                const card = deck.pop();
+                if (j === i) card.faceUp = true;
+                col.push(card);
+            }
+        });
+        
+        stock = deck;
+        render();
+    }
+    
+    function render() {
+        board.innerHTML = '';
+        
+        // Stock and Waste
+        const stockEl = createCardEl(stock.length > 0 ? { faceUp: false } : null, 'stock');
+        stockEl.style.left = '20px';
+        stockEl.style.top = '20px';
+        stockEl.addEventListener('click', drawFromStock);
+        board.appendChild(stockEl);
+        
+        const wasteEl = createCardEl(waste.length > 0 ? waste[waste.length - 1] : null, 'waste');
+        wasteEl.style.left = '100px';
+        wasteEl.style.top = '20px';
+        if (selected && selected.type === 'waste') {
+            wasteEl.style.boxShadow = '0 0 10px 2px #ffff00';
+            wasteEl.style.transform = 'scale(1.05)';
+            wasteEl.style.zIndex = '100';
+        }
+        wasteEl.addEventListener('click', handleWasteClick);
+        board.appendChild(wasteEl);
+        
+        // Foundations
+        suits.forEach((suit, i) => {
+            const foundation = foundations[suit];
+            const card = foundation.length > 0 ? foundation[foundation.length - 1] : { suit, value: '', empty: true };
+            const el = createCardEl(card, 'foundation');
+            el.style.left = `${250 + i * 80}px`;
+            el.style.top = '20px';
+            el.dataset.suit = suit;
+            el.addEventListener('click', () => moveToFoundation(suit));
+            board.appendChild(el);
+        });
+        
+        // Tableau
+        tableau.forEach((col, i) => {
+            const colEl = document.createElement('div');
+            colEl.className = 'solitaire-column';
+            colEl.style.position = 'absolute';
+            colEl.style.left = `${20 + i * 80}px`;
+            colEl.style.top = '120px';
+            colEl.style.width = '70px';
+            colEl.style.height = '400px';
+            
+            col.forEach((card, j) => {
+                const cardEl = createCardEl(card);
+                cardEl.style.position = 'absolute';
+                cardEl.style.top = `${j * 20}px`;
+                if (selected && selected.type === 'tableau' && selected.colIndex === i && selected.cardIndex === j) {
+                    cardEl.style.boxShadow = '0 0 10px 2px #ffff00';
+                    cardEl.style.transform = 'scale(1.05)';
+                    cardEl.style.zIndex = '100';
+                }
+                cardEl.addEventListener('click', () => handleTableauClick(i, j));
+                colEl.appendChild(cardEl);
+            });
+            
+            if (col.length === 0) {
+                const emptyEl = createCardEl(null);
+                emptyEl.addEventListener('click', () => handleTableauClick(i, -1));
+                colEl.appendChild(emptyEl);
+            }
+            
+            board.appendChild(colEl);
+        });
+    }
+    
+    function createCardEl(card, type = '') {
+        const el = document.createElement('div');
+        el.className = `solitaire-card ${type}`;
+        el.style.width = '70px';
+        el.style.height = '100px';
+        el.style.border = '1px solid #000';
+        el.style.borderRadius = '5px';
+        el.style.backgroundColor = '#fff';
+        el.style.display = 'flex';
+        el.style.flexDirection = 'column';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'center';
+        el.style.fontSize = '1.2rem';
+        el.style.fontWeight = 'bold';
+        el.style.cursor = 'pointer';
+        el.style.userSelect = 'none';
+        
+        if (!card) {
+            el.style.backgroundColor = 'transparent';
+            el.style.border = '1px dashed #fff';
+            return el;
+        }
+        
+        if (card.empty) {
+            el.style.backgroundColor = 'rgba(255,255,255,0.2)';
+            el.style.border = '1px solid #fff';
+            el.innerHTML = `<span style="opacity: 0.3">${getSuitSymbol(card.suit)}</span>`;
+            return el;
+        }
+        
+        if (!card.faceUp && type !== 'stock') {
+            el.style.backgroundColor = '#000080';
+            el.style.backgroundImage = 'repeating-linear-gradient(45deg, #000080, #000080 5px, #0000a0 5px, #0000a0 10px)';
+            return el;
+        }
+        
+        if (type === 'stock') {
+             el.style.backgroundColor = '#000080';
+             el.style.backgroundImage = 'repeating-linear-gradient(45deg, #000080, #000080 5px, #0000a0 5px, #0000a0 10px)';
+             return el;
+        }
+
+        el.style.color = card.color;
+        el.innerHTML = `<div>${card.value}</div><div>${getSuitSymbol(card.suit)}</div>`;
+        return el;
+    }
+    
+    function getSuitSymbol(suit) {
+        switch(suit) {
+            case 'hearts': return '♥';
+            case 'diamonds': return '♦';
+            case 'clubs': return '♣';
+            case 'spades': return '♠';
+            default: return '';
+        }
+    }
+    
+    function drawFromStock() {
+        if (stock.length === 0) {
+            stock = waste.reverse().map(c => ({ ...c, faceUp: false }));
+            waste = [];
+        } else {
+            const card = stock.pop();
+            card.faceUp = true;
+            waste.push(card);
+        }
+        render();
+    }
+    
+    let selected = null;
+    
+    function handleWasteClick() {
+        if (waste.length === 0) return;
+        if (selected && selected.type === 'waste') {
+            selected = null;
+        } else {
+            selected = { type: 'waste' };
+        }
+        render();
+    }
+
+    function handleTableauClick(colIndex, cardIndex) {
+        const col = tableau[colIndex];
+        const card = cardIndex === -1 ? null : col[cardIndex];
+        
+        if (card && !card.faceUp) return;
+        
+        if (selected) {
+            if (selected.type === 'tableau') {
+                const fromCol = tableau[selected.colIndex];
+                const cardsToMove = fromCol.splice(selected.cardIndex);
+                
+                if (canMoveToTableau(cardsToMove[0], card)) {
+                    col.push(...cardsToMove);
+                    if (fromCol.length > 0) fromCol[fromCol.length - 1].faceUp = true;
+                } else {
+                    fromCol.push(...cardsToMove);
+                }
+            } else if (selected.type === 'waste') {
+                const cardToMove = waste[waste.length - 1];
+                if (canMoveToTableau(cardToMove, card)) {
+                    col.push(waste.pop());
+                }
+            }
+            selected = null;
+        } else {
+            selected = { type: 'tableau', colIndex, cardIndex };
+        }
+        render();
+    }
+    
+    function canMoveToTableau(card, target) {
+        if (!target) return card.value === 'K';
+        return card.color !== target.color && card.rank === target.rank - 1;
+    }
+    
+    function moveToFoundation(suit) {
+        if (selected) {
+            let cardToMove = null;
+            if (selected.type === 'tableau') {
+                const fromCol = tableau[selected.colIndex];
+                if (selected.cardIndex === fromCol.length - 1) {
+                    cardToMove = fromCol[fromCol.length - 1];
+                }
+            } else if (selected.type === 'waste') {
+                cardToMove = waste[waste.length - 1];
+            }
+            
+            if (cardToMove && cardToMove.suit === suit) {
+                const foundation = foundations[suit];
+                const targetRank = foundation.length === 0 ? 0 : foundation[foundation.length - 1].rank;
+                
+                if (cardToMove.rank === targetRank + 1) {
+                    foundations[suit].push(cardToMove);
+                    if (selected.type === 'tableau') {
+                        const fromCol = tableau[selected.colIndex];
+                        fromCol.pop();
+                        if (fromCol.length > 0) fromCol[fromCol.length - 1].faceUp = true;
+                    } else {
+                        waste.pop();
+                    }
+                }
+            }
+            selected = null;
+            render();
+        }
+    }
+    
+    const newGameBtn = windowElement.querySelector('#solitaire-new-game');
+    if (newGameBtn) newGameBtn.addEventListener('click', deal);
+    
+    deal();
+    
+    return () => {
+        // Cleanup if needed
+    };
 }
 
 
