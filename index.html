@@ -546,6 +546,77 @@
         flex-grow: 1;
         position: relative;
         background-color: white;
+        overflow: hidden;
+      }
+      .browser-tabs {
+        display: flex;
+        background-color: #c0c0c0;
+        padding: 2px 2px 0 2px;
+        border-bottom: 1px solid #808080;
+        gap: 2px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .browser-tabs::-webkit-scrollbar {
+        display: none;
+      }
+      .browser-tab {
+        background-color: #d0d0d0;
+        border: 1px solid #808080;
+        border-bottom: none;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 150px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        border-radius: 4px 4px 0 0;
+        position: relative;
+      }
+      .browser-tab.active {
+        background-color: #f0f0f0;
+        font-weight: bold;
+        z-index: 2;
+        border-bottom: 1px solid #f0f0f0;
+        margin-bottom: -1px;
+      }
+      .browser-tab-close {
+        font-size: 0.7rem;
+        color: #808080;
+        padding: 0 2px;
+      }
+      .browser-tab-close:hover {
+        background-color: #ff4444;
+        color: white;
+        border-radius: 2px;
+      }
+      .new-tab-button {
+        background-color: #d0d0d0;
+        border: 1px solid #808080;
+        border-bottom: none;
+        padding: 2px 8px;
+        cursor: pointer;
+        font-size: 1rem;
+        border-radius: 4px 4px 0 0;
+      }
+      .new-tab-button:hover {
+        background-color: #e0e0e0;
+      }
+      .browser-frame {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: none;
+      }
+      .browser-frame.active {
+        display: block;
       }
       .browser-loading {
         position: absolute;
@@ -726,6 +797,10 @@
           </div>
         </div>
         <div class="window-content">
+          <div class="browser-tabs">
+            <div class="tabs-container"></div>
+            <button class="new-tab-button">+</button>
+          </div>
           <div class="browser-toolbar">
             <div class="address-bar-container">
               <input type="text" class="browser-address-bar" placeholder="Enter a website URL..." value="https://www.google.com" />
@@ -734,7 +809,7 @@
             </div>
           </div>
           <div class="browser-viewport">
-            <iframe id="browser-frame" src="https://web.archive.org/web/19990428171538/http://google.com/" width="100%" height="100%"></iframe>
+            <div class="browser-frames-container" style="width: 100%; height: 100%; position: relative;"></div>
             <div class="browser-loading">Connecting...</div>
           </div>
         </div>

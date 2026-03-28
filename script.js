@@ -693,10 +693,99 @@ function initChromeBrowser(windowElement) {
     const addressBar = windowElement.querySelector('.browser-address-bar');
     const goButton = windowElement.querySelector('.browser-go-button');
     const extensionsButton = windowElement.querySelector('.browser-extensions-button');
-    const iframe = windowElement.querySelector('#browser-frame');
+    const framesContainer = windowElement.querySelector('.browser-frames-container');
+    const tabsContainer = windowElement.querySelector('.tabs-container');
+    const newTabBtn = windowElement.querySelector('.new-tab-button');
     const loading = windowElement.querySelector('.browser-loading');
 
-    if (!addressBar || !goButton || !iframe || !loading) return;
+    if (!addressBar || !goButton || !framesContainer || !tabsContainer || !newTabBtn || !loading) return;
+
+    let tabs = [];
+    let activeTabId = null;
+
+    function createTab(url = 'https://web.archive.org/web/19990428171538/http://google.com/') {
+        const id = Date.now() + Math.random().toString(36).substr(2, 9);
+        const tab = {
+            id,
+            url,
+            title: 'Loading...'
+        };
+        tabs.push(tab);
+
+        const tabEl = document.createElement('div');
+        tabEl.className = 'browser-tab';
+        tabEl.dataset.id = id;
+        tabEl.innerHTML = `
+            <span class="tab-title">New Tab</span>
+            <span class="browser-tab-close">✕</span>
+        `;
+        tabsContainer.appendChild(tabEl);
+
+        const iframe = document.createElement('iframe');
+        iframe.className = 'browser-frame';
+        iframe.dataset.id = id;
+        iframe.src = url;
+        iframe.onload = () => {
+            loading.style.display = 'none';
+            try {
+                // Try to get title if same-origin (rare)
+                if (iframe.contentDocument && iframe.contentDocument.title) {
+                    tabEl.querySelector('.tab-title').textContent = iframe.contentDocument.title;
+                } else {
+                    const urlObj = new URL(iframe.src);
+                    tabEl.querySelector('.tab-title').textContent = urlObj.hostname;
+                }
+            } catch (e) {
+                // Fallback for cross-origin
+                const urlObj = new URL(iframe.src);
+                tabEl.querySelector('.tab-title').textContent = urlObj.hostname;
+            }
+        };
+        framesContainer.appendChild(iframe);
+
+        tabEl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('browser-tab-close')) {
+                closeTab(id);
+            } else {
+                switchTab(id);
+            }
+        });
+
+        switchTab(id);
+    }
+
+    function switchTab(id) {
+        activeTabId = id;
+        const activeTab = tabs.find(t => t.id === id);
+        if (!activeTab) return;
+
+        addressBar.value = activeTab.url;
+
+        windowElement.querySelectorAll('.browser-tab').forEach(el => {
+            el.classList.toggle('active', el.dataset.id === id);
+        });
+
+        windowElement.querySelectorAll('.browser-frame').forEach(el => {
+            el.classList.toggle('active', el.dataset.id === id);
+        });
+    }
+
+    function closeTab(id) {
+        const index = tabs.findIndex(t => t.id === id);
+        if (index === -1) return;
+
+        tabs.splice(index, 1);
+        windowElement.querySelector(`.browser-tab[data-id="${id}"]`).remove();
+        windowElement.querySelector(`.browser-frame[data-id="${id}"]`).remove();
+
+        if (activeTabId === id) {
+            if (tabs.length > 0) {
+                switchTab(tabs[tabs.length - 1].id);
+            } else {
+                createTab();
+            }
+        }
+    }
 
     function loadUrl() {
         let url = addressBar.value.trim();
@@ -704,11 +793,14 @@ function initChromeBrowser(windowElement) {
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
             url = 'https://' + url;
         }
-        loading.style.display = 'flex';
-        iframe.src = url;
-        iframe.onload = () => {
-            loading.style.display = 'none';
-        };
+        
+        const activeIframe = windowElement.querySelector(`.browser-frame[data-id="${activeTabId}"]`);
+        if (activeIframe) {
+            loading.style.display = 'flex';
+            activeIframe.src = url;
+            const tab = tabs.find(t => t.id === activeTabId);
+            if (tab) tab.url = url;
+        }
     }
 
     goButton.addEventListener('click', loadUrl);
@@ -716,11 +808,16 @@ function initChromeBrowser(windowElement) {
         if (e.key === 'Enter') loadUrl();
     });
 
+    newTabBtn.addEventListener('click', () => createTab());
+
     if (extensionsButton) {
         extensionsButton.addEventListener('click', () => {
             openApp('extensionManager');
         });
     }
+
+    // Initial tab
+    createTab();
 }
 
 function initCalculator(windowElement) {
@@ -1354,6 +1451,8 @@ function initPinball(windowElement) {
         { x1: 340, y1: 400, x2: 270, y2: 460 } // Right drain slope
     ];
 
+    let lastTime = 0;
+
     function drawFlipper(f, isLeft) {
         ctx.save();
         ctx.translate(f.pivotX, f.pivotY);
@@ -1378,16 +1477,18 @@ function initPinball(windowElement) {
         ctx.restore();
     }
 
-    function update() {
+    function update(dt) {
         if (!gameRunning) return;
 
-        // Gravity and friction
-        ball.dy += ball.gravity;
-        ball.dx *= ball.friction;
-        ball.dy *= ball.friction;
+        // Gravity and friction adjusted for dt (dt is in ms, assuming 60fps target)
+        const dtScale = dt / 16.67;
+        
+        ball.dy += ball.gravity * dtScale;
+        ball.dx *= Math.pow(ball.friction, dtScale);
+        ball.dy *= Math.pow(ball.friction, dtScale);
 
-        ball.x += ball.dx;
-        ball.y += ball.dy;
+        ball.x += ball.dx * dtScale;
+        ball.y += ball.dy * dtScale;
 
         // Wall collisions (simple circle-line)
         walls.forEach(w => {
@@ -1415,8 +1516,8 @@ function initPinball(windowElement) {
         });
 
         // Flipper logic
-        leftFlipper.angle += (leftFlipper.targetAngle - leftFlipper.angle) * 0.4;
-        rightFlipper.angle += (rightFlipper.targetAngle - rightFlipper.angle) * 0.4;
+        leftFlipper.angle += (leftFlipper.targetAngle - leftFlipper.angle) * 0.4 * dtScale;
+        rightFlipper.angle += (rightFlipper.targetAngle - rightFlipper.angle) * 0.4 * dtScale;
 
         // Flipper collision
         function checkFlipperCollision(f, isLeft) {
@@ -1440,7 +1541,7 @@ function initPinball(windowElement) {
                     
                     ball.dx = Math.cos(bounceAngle) * (speed + boost);
                     ball.dy = Math.sin(bounceAngle) * (speed + boost);
-                    ball.y -= 5; // Prevent sticking
+                    ball.y -= 5 * dtScale; // Prevent sticking
                     
                     score += 10;
                     scoreEl.textContent = score;
@@ -1480,7 +1581,11 @@ function initPinball(windowElement) {
         }
     }
 
-    function draw() {
+    function draw(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        const dt = timestamp - lastTime;
+        lastTime = timestamp;
+
         ctx.fillStyle = "#111";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1532,20 +1637,21 @@ function initPinball(windowElement) {
             ctx.fillText("Press Start to play again", canvas.width/2, canvas.height/2 + 60);
         }
 
-        update();
+        update(dt);
         if (gameRunning || gameOver) {
             requestAnimationFrame(draw);
         }
     }
 
     startBtn.onclick = () => {
-        // Launch ball from plunger lane
-        ball = { x: 360, y: 480, dx: 0, dy: -12, radius: 8, gravity: 0.15, friction: 0.995 };
+        // Launch ball from plunger lane with more force
+        ball = { x: 360, y: 480, dx: 0, dy: -18, radius: 8, gravity: 0.15, friction: 0.995 };
         score = 0;
         scoreEl.textContent = score;
         gameRunning = true;
         gameOver = false;
-        draw();
+        lastTime = 0;
+        requestAnimationFrame(draw);
     };
 
     const handleKeyDown = (e) => {
