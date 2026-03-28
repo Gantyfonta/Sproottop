@@ -786,6 +786,14 @@ function initChromeBrowser(windowElement) {
     }
 
     function switchTab(id) {
+        // Save current address bar to the OLD active tab before switching
+        if (activeTabId) {
+            const oldTab = tabs.find(t => t.id === activeTabId);
+            if (oldTab) {
+                oldTab.url = addressBar.value;
+            }
+        }
+
         activeTabId = id;
         const activeTab = tabs.find(t => t.id === id);
         if (!activeTab) return;
