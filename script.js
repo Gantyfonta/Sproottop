@@ -703,6 +703,10 @@ function initChromeBrowser(windowElement) {
     let tabs = [];
     let activeTabId = null;
 
+    // Clean up any existing tabs/frames from previous sessions
+    tabsContainer.innerHTML = '';
+    framesContainer.innerHTML = '';
+
     function createTab(url = 'https://web.archive.org/web/19990428171538/http://google.com/') {
         const id = Date.now() + Math.random().toString(36).substr(2, 9);
         const tab = {
@@ -800,12 +804,23 @@ function initChromeBrowser(windowElement) {
 
         addressBar.value = activeTab.url;
 
+        // Force visibility update for both tabs and frames
         windowElement.querySelectorAll('.browser-tab').forEach(el => {
-            el.classList.toggle('active', el.dataset.id === id);
+            if (el.dataset.id === id) {
+                el.classList.add('active');
+            } else {
+                el.classList.remove('active');
+            }
         });
 
         windowElement.querySelectorAll('.browser-frame').forEach(el => {
-            el.classList.toggle('active', el.dataset.id === id);
+            if (el.dataset.id === id) {
+                el.classList.add('active');
+                el.style.display = 'block'; // Explicitly set display to ensure visibility
+            } else {
+                el.classList.remove('active');
+                el.style.display = 'none'; // Explicitly hide others
+            }
         });
     }
 
@@ -832,6 +847,7 @@ function initChromeBrowser(windowElement) {
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
             url = 'https://' + url;
         }
+        addressBar.value = url;
         
         const activeIframe = windowElement.querySelector(`.browser-frame[data-id="${activeTabId}"]`);
         if (activeIframe) {
