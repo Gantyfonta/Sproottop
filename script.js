@@ -842,11 +842,39 @@ function initChromeBrowser(windowElement) {
     }
 
     function loadUrl() {
-        let url = addressBar.value.trim();
-        if (!url) return;
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            url = 'https://' + url;
+        let input = addressBar.value.trim();
+        if (!input) return;
+
+        let url;
+        // Check if it's a URL or a search query
+        // A URL usually has a dot and no spaces
+        const isUrl = input.includes('.') && !input.includes(' ');
+        
+        if (isUrl) {
+            url = input;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+        } else {
+            // Treat as a search query
+            url = `https://www.google.com/search?q=${encodeURIComponent(input)}&igu=1`;
         }
+        
+        addressBar.value = url;
+        
+        const activeIframe = windowElement.querySelector(`.browser-frame[data-id="${activeTabId}"]`);
+        if (activeIframe) {
+            loading.style.display = 'flex';
+            activeIframe.src = url;
+            const tab = tabs.find(t => t.id === activeTabId);
+            if (tab) tab.url = url;
+        }
+    }
+
+    function searchGoogle() {
+        let input = addressBar.value.trim();
+        if (!input) return;
+        const url = `https://www.google.com/search?q=${encodeURIComponent(input)}&igu=1`;
         addressBar.value = url;
         
         const activeIframe = windowElement.querySelector(`.browser-frame[data-id="${activeTabId}"]`);
@@ -859,6 +887,8 @@ function initChromeBrowser(windowElement) {
     }
 
     goButton.addEventListener('click', loadUrl);
+    const searchButton = windowElement.querySelector('.browser-search-button');
+    if (searchButton) searchButton.addEventListener('click', searchGoogle);
     addressBar.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') loadUrl();
     });
